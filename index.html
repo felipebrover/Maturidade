@@ -29,6 +29,11 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #6366f1; /* indigo-500 */
       }
+
+      .print-header {
+        display: none;
+      }
+
       /* Print styles */
       @media print {
         body {
@@ -37,6 +42,9 @@
         }
         .no-print {
           display: none !important;
+        }
+        .print-header {
+          display: block !important;
         }
         .print-container {
           display: block !important;
@@ -47,10 +55,17 @@
         main {
            background: white !important;
            color: black !important;
+           padding: 1.5rem !important;
         }
         .print-bg-white { background-color: white !important; }
         .print-text-black { color: black !important; }
         .print-border-gray { border-color: #e5e7eb !important; }
+
+        .recharts-responsive-container {
+            width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 16 / 9;
+        }
       }
     </style>
   <script type="importmap">

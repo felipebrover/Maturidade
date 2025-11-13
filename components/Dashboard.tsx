@@ -247,6 +247,7 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
     const { clients, activeClient, setActiveClientId, addClient } = useData();
     const [isDropdownOpen, setDropdownOpen] = useState(false);
     const [newClientName, setNewClientName] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const handleAddClient = () => {
@@ -267,6 +268,33 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [dropdownRef]);
 
+    const filteredClients = useMemo(() => {
+        if (!searchQuery) return clients;
+        return clients.filter(client => 
+            client.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [clients, searchQuery]);
+
+    const highlightMatch = (text: string, query: string) => {
+        if (!query) return text;
+        const regex = new RegExp(`(${query})`, 'gi');
+        const parts = text.split(regex);
+        return (
+            <span>
+                {parts.map((part, i) => 
+                    regex.test(part) ? (
+                        <strong key={i} className="text-indigo-300 font-bold bg-indigo-600/50 rounded-sm px-0.5">
+                            {part}
+                        </strong>
+                    ) : (
+                        part
+                    )
+                )}
+            </span>
+        );
+    };
+
+
     return (
         <header className="no-print flex-shrink-0 bg-gray-900/80 backdrop-blur-sm border-b border-indigo-800/30 flex items-center justify-between p-4">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-400 hover:text-white">
@@ -279,14 +307,30 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
                     <ChevronsUpDown className="h-4 w-4 text-gray-400" />
                 </button>
                 {isDropdownOpen && (
-                    <div className="absolute mt-2 w-64 bg-gray-800 border border-indigo-700/50 rounded-lg shadow-xl z-10">
+                    <div className="absolute mt-2 w-72 bg-gray-800 border border-indigo-700/50 rounded-lg shadow-xl z-10">
+                        <div className="p-2 border-b border-indigo-700/50">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                autoFocus
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Buscar cliente..."
+                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <p className="text-xs text-gray-400 mt-2 px-1">
+                                Mostrando {filteredClients.length} de {clients.length} clientes.
+                            </p>
+                        </div>
                         <div className="p-2 max-h-60 overflow-y-auto">
-                            {clients.map(client => (
-                                <button key={client.id} onClick={() => { setActiveClientId(client.id); setDropdownOpen(false); }} className="w-full text-left flex items-center justify-between px-3 py-2 text-sm rounded-md hover:bg-indigo-600">
-                                    {client.name}
+                            {filteredClients.map(client => (
+                                <button key={client.id} onClick={() => { setActiveClientId(client.id); setDropdownOpen(false); setSearchQuery(''); }} className="w-full text-left flex items-center justify-between px-3 py-2 text-sm rounded-md hover:bg-indigo-600">
+                                    <span>{highlightMatch(client.name, searchQuery)}</span>
                                     {client.id === activeClient?.id && <Check className="h-4 w-4" />}
                                 </button>
                             ))}
+                             {filteredClients.length === 0 && searchQuery && (
+                                <p className="text-center text-sm text-gray-500 py-4">Nenhum cliente encontrado.</p>
+                            )}
                         </div>
                         <div className="p-2 border-t border-indigo-700/50">
                             <input

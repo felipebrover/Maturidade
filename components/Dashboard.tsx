@@ -1,14 +1,14 @@
-
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useData } from '../App';
 import {
-    LayoutDashboard, BarChart3, Clock, Briefcase, BotMessageSquare, Library, LogOut, Menu, X, Plus, ChevronsUpDown, Check, FileDown, Rocket, Target, Minus, AlertTriangle, Building, Package, Megaphone, Handshake, Users, SlidersHorizontal, Building2, Compass, Goal, Network, Workflow, BarChartBig, HandCoins, Database, Edit, ChevronDown, ChevronUp, Info, Sheet
+    LayoutDashboard, BarChart3, Clock, Briefcase, BotMessageSquare, Library, LogOut, Menu, X, Plus, ChevronsUpDown, Check, FileDown, Rocket, Target, Minus, AlertTriangle, Building, Package, Megaphone, Handshake, Users, SlidersHorizontal, Building2, Compass, Goal, Network, Workflow, BarChartBig, HandCoins, Database, Edit, ChevronDown, ChevronUp, Info, Sheet,
+    UploadCloud, Trash2, FileText, ClipboardCheck, Calendar, GripVertical, User, Paperclip, File as FileIcon
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS } from '../constants';
+import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS, CLIENT_INFO_SECTIONS_ORDER } from '../constants';
 import { generateExecutiveSummary } from '../services/geminiService';
 import { formatDate, calculatePillarScore, calculateOverallMaturity } from '../utils';
-import { Pillar, type PillarScore, type PillarScores, type View, type Assessment } from '../types';
+import { Pillar, type PillarScore, type PillarScores, type View, type Assessment, type Deliverable, type WeeklyPlan, type KanbanCard, type KanbanCardStatus, ClientInfoSectionId, ClientInfoQuestion, Attachment } from '../types';
 
 const ICON_MAP: Record<Pillar, React.ElementType> = {
     [Pillar.STRATEGY]: Compass,
@@ -166,9 +166,11 @@ const Dashboard: React.FC = () => {
         switch (currentView) {
             case 'dashboard': return <DashboardHome onPillarClick={handleStartEditingFromDashboard} onNewAssessmentClick={handleOpenCreateModal} />;
             case 'evolution': return <EvolutionView />;
+            case 'clientInfo': return <ClientInfoView />;
             case 'timeline': return <TimelineView onStartEditing={handleStartEditing} onNewAssessmentClick={handleOpenCreateModal} />;
             case 'meeting': return <MeetingPrepView />;
             case 'library': return <ResourceLibraryView />;
+            case 'planning': return <WeeklyPlanningView />;
             default: return <DashboardHome onPillarClick={handleStartEditingFromDashboard} onNewAssessmentClick={handleOpenCreateModal} />;
         }
     };
@@ -224,7 +226,9 @@ const Sidebar: React.FC<{ currentView: View, setCurrentView: (view: View) => voi
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'evolution', label: 'Evolução', icon: BarChart3 },
+        { id: 'clientInfo', label: 'Informações', icon: User },
         { id: 'timeline', label: 'Timeline', icon: Clock },
+        { id: 'planning', label: 'Planejamento', icon: ClipboardCheck },
         { id: 'meeting', label: 'Reunião IA', icon: BotMessageSquare },
         { id: 'library', label: 'Biblioteca', icon: Library },
     ];
@@ -923,14 +927,738 @@ const MeetingPrepView: React.FC = () => {
 
 // Resource Library View
 const ResourceLibraryView: React.FC = () => {
+    const { activeClient, addDeliverable, deleteDeliverable } = useData();
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [fileContent, setFileContent] = useState('');
+    const [fileName, setFileName] = useState('');
+    const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                setError('O arquivo é muito grande. O limite é de 5MB.');
+                return;
+            }
+            setError('');
+            setFileName(file.name);
+            try {
+                const text = await file.text();
+                setFileContent(text);
+            } catch (e) {
+                console.error("Error reading file:", e);
+                setError('Não foi possível ler o arquivo. Certifique-se de que é um arquivo de texto válido.');
+                setFileContent('');
+                setFileName('');
+            }
+        }
+    };
+
+    const handleFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim() || !description.trim() || !fileContent) {
+            setError('Todos os campos, incluindo o arquivo, são obrigatórios.');
+            return;
+        }
+        setIsSubmitting(true);
+        setError('');
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        if(activeClient) {
+            addDeliverable(activeClient.id, name, description, fileContent);
+            // Reset form
+            setName('');
+            setDescription('');
+            setFileContent('');
+            setFileName('');
+            if(fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+        setIsSubmitting(false);
+    };
+    
+    const handleDelete = (id: string) => {
+        if (activeClient && window.confirm('Tem certeza que deseja excluir este entregável?')) {
+            deleteDeliverable(activeClient.id, id);
+        }
+    }
+
+    if (!activeClient) return null;
+
     return (
-        <div className="text-center p-8 bg-gray-800/30 rounded-lg">
-            <Library className="mx-auto w-12 h-12 text-indigo-400 mb-4" />
-            <h2 className="text-xl font-bold mb-2">Biblioteca de Recursos</h2>
-            <p className="text-gray-400">Em breve: Acesso a playbooks, templates e melhores práticas para cada pilar.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1">
+                 <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6 sticky top-6">
+                    <h2 className="text-2xl font-bold text-white mb-1">Adicionar Entregável</h2>
+                    <p className="text-gray-400 mb-6">Faça upload de documentos, playbooks e outros materiais de texto.</p>
+                    <form onSubmit={handleFormSubmit} className="space-y-4">
+                        <div>
+                            <label htmlFor="deliverable-name" className="block text-sm font-medium text-gray-300 mb-1">Nome do Entregável</label>
+                            <input
+                                id="deliverable-name"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Ex: Playbook de Vendas V2"
+                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="deliverable-desc" className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
+                            <textarea
+                                id="deliverable-desc"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                rows={3}
+                                placeholder="Um resumo do que é este documento."
+                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+                        <div>
+                           <label className="block text-sm font-medium text-gray-300 mb-1">Arquivo de Texto</label>
+                           <div 
+                                className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md cursor-pointer hover:border-indigo-500 transition-colors"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <div className="space-y-1 text-center">
+                                    <UploadCloud className="mx-auto h-12 w-12 text-gray-500" />
+                                    {fileName ? (
+                                        <p className="text-sm text-green-400 font-semibold">{fileName}</p>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm text-gray-400">
+                                                <span className="font-semibold text-indigo-400">Clique para fazer upload</span> ou arraste e solte
+                                            </p>
+                                            <p className="text-xs text-gray-500">Apenas arquivos de texto (TXT, MD, etc.)</p>
+                                        </>
+                                    )}
+                                </div>
+                                <input id="file-upload" name="file-upload" type="file" className="sr-only" ref={fileInputRef} onChange={handleFileChange} accept="text/*,.md"/>
+                            </div>
+                        </div>
+
+                        {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || !name || !description || !fileContent}
+                            className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSubmitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                            {isSubmitting ? 'Salvando...' : 'Salvar Entregável'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div className="lg:col-span-2">
+                 <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-white">Biblioteca de {activeClient.name}</h2>
+                    {activeClient.deliverables.length === 0 ? (
+                        <div className="text-center p-8 bg-gray-800/30 rounded-lg">
+                            <Library className="mx-auto w-12 h-12 text-gray-500 mb-4" />
+                            <h3 className="text-xl font-bold mb-2">Biblioteca Vazia</h3>
+                            <p className="text-gray-400">Use o formulário ao lado para adicionar o primeiro entregável.</p>
+                        </div>
+                    ) : (
+                        activeClient.deliverables.map(deliverable => (
+                            <DeliverableCard key={deliverable.id} deliverable={deliverable} onDelete={() => handleDelete(deliverable.id)} />
+                        ))
+                    )}
+                 </div>
+            </div>
         </div>
     );
 };
+
+const DeliverableCard: React.FC<{ deliverable: Deliverable; onDelete: () => void; }> = ({ deliverable, onDelete }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    
+    return (
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 overflow-hidden">
+            <div className="p-4 flex justify-between items-start gap-4">
+                <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                         <FileText className="w-5 h-5 text-indigo-400 flex-shrink-0"/>
+                         <h3 className="text-lg font-bold text-white">{deliverable.name}</h3>
+                    </div>
+                    <p className="text-sm text-gray-400 ml-8">{deliverable.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={onDelete} className="p-2 rounded-full hover:bg-red-900/50 transition-colors" title="Excluir">
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                    </button>
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="p-2 rounded-full hover:bg-gray-700 transition-colors" title={isExpanded ? 'Recolher' : 'Expandir'}>
+                        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
+            </div>
+            {isExpanded && (
+                <div className="p-4 border-t border-indigo-800/30 bg-black/20">
+                    <h4 className="font-semibold text-gray-300 mb-2">Conteúdo do Documento:</h4>
+                    <pre className="text-sm text-gray-300 whitespace-pre-wrap break-words bg-gray-900 p-4 rounded-md max-h-96 overflow-y-auto">
+                        {deliverable.content}
+                    </pre>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Client Info View
+const ClientInfoView: React.FC = () => {
+    const { activeClient } = useData();
+
+    const handleExport = useCallback(() => {
+        if (!activeClient) return;
+
+        let content = `Informações do Cliente: ${activeClient.name}\n`;
+        content += `Data da Exportação: ${new Date().toLocaleDateString('pt-BR')}\n`;
+        content += "==================================================\n\n";
+
+        CLIENT_INFO_SECTIONS_ORDER.forEach(sectionId => {
+            const section = activeClient.clientInfo[sectionId];
+            content += `## ${section.title}\n\n`;
+            section.questions.forEach(q => {
+                content += `**${q.question}**\n`;
+                content += `${q.answer || '(Não respondido)'}\n`;
+                if(q.attachments && q.attachments.length > 0) {
+                    content += `Anexos: ${q.attachments.map(a => a.name).join(', ')}\n`
+                }
+                content += '\n';
+            });
+            content += "--------------------------------------------------\n\n";
+        });
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `info_${activeClient.name.replace(/\s+/g, '_')}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    }, [activeClient]);
+
+    if (!activeClient) return null;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-white">Informações do Cliente</h2>
+                    <p className="text-gray-400">Base de conhecimento centralizada sobre {activeClient.name}.</p>
+                </div>
+                 <button
+                    onClick={handleExport}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
+                >
+                    <FileDown className="h-4 w-4" />
+                    Exportar
+                </button>
+            </div>
+            <div className="space-y-4">
+                {CLIENT_INFO_SECTIONS_ORDER.map(sectionId => (
+                    <ClientInfoSection key={sectionId} sectionId={sectionId} />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const ClientInfoSection: React.FC<{ sectionId: ClientInfoSectionId }> = ({ sectionId }) => {
+    const { activeClient, updateClientInfoAnswer, addClientInfoQuestion, deleteClientInfoQuestion, addClientInfoAttachment, deleteClientInfoAttachment } = useData();
+    const [isExpanded, setIsExpanded] = useState(sectionId === 'summary'); // Expand first section by default
+    const [isManageModalOpen, setManageModalOpen] = useState(false);
+    
+    if (!activeClient || !activeClient.clientInfo || !activeClient.clientInfo[sectionId]) return null;
+    
+    const section = activeClient.clientInfo[sectionId];
+    const totalQuestions = section.questions.length;
+    const answeredQuestions = section.questions.filter(q => q.answer.trim() !== '').length;
+    const completionPercentage = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 100;
+
+    const handleSaveManagedQuestions = (newQuestionText: string, idsToDelete: string[]) => {
+        if(newQuestionText) {
+            addClientInfoQuestion(activeClient.id, sectionId, newQuestionText);
+        }
+        idsToDelete.forEach(id => {
+            deleteClientInfoQuestion(activeClient.id, sectionId, id);
+        });
+    };
+    
+    const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+    const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>, questionId: string) => {
+        const file = e.target.files?.[0];
+        if (file && activeClient) {
+            if (file.size > 2 * 1024 * 1024) { // 2MB limit
+                alert("O arquivo é muito grande. O limite é de 2MB.");
+                return;
+            }
+            try {
+                await addClientInfoAttachment(activeClient.id, sectionId, questionId, file);
+            } catch (error) {
+                console.error("Upload failed", error);
+                alert("Falha ao fazer upload do anexo.");
+            }
+        }
+    };
+
+    return (
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 overflow-hidden">
+            <header className="p-4 flex justify-between items-center cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+                <div className="flex-1">
+                    <h3 className="text-lg font-bold text-white">{section.title}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                        <div className="w-full max-w-xs bg-gray-700 rounded-full h-1.5">
+                            <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${completionPercentage}%` }}></div>
+                        </div>
+                        <span className="text-xs font-semibold text-gray-400">{completionPercentage}%</span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setManageModalOpen(true); }}
+                        className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                        title="Gerenciar perguntas"
+                    >
+                        <SlidersHorizontal size={18} />
+                    </button>
+                    <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </div>
+            </header>
+            {isExpanded && (
+                <main className="p-4 border-t border-indigo-800/30 space-y-4">
+                    {section.questions.map(q => (
+                        <div key={q.id} className={`p-3 rounded-lg ${q.answer.trim() === '' && (q.attachments || []).length === 0 ? 'bg-gray-900/50 border border-dashed border-gray-600' : 'bg-gray-900/50'}`}>
+                            <label className="block text-sm font-semibold text-gray-300 mb-2">{q.question}</label>
+                            <textarea
+                                defaultValue={q.answer}
+                                onBlur={(e) => updateClientInfoAnswer(activeClient.id, sectionId, q.id, e.target.value)}
+                                rows={q.answer.split('\n').length < 2 ? 2 : q.answer.split('\n').length}
+                                placeholder="Sua resposta aqui..."
+                                className="w-full text-sm px-3 py-2 text-white bg-gray-800/60 border border-gray-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-y"
+                             />
+                             <div className="mt-2 flex justify-between items-end">
+                                <div className="flex flex-wrap gap-2">
+                                    {(q.attachments || []).map(att => (
+                                        <AttachmentChip 
+                                            key={att.id}
+                                            attachment={att}
+                                            onDelete={() => deleteClientInfoAttachment(activeClient.id, sectionId, q.id, att.id)}
+                                        />
+                                    ))}
+                                </div>
+                                <div>
+                                    <button 
+                                        onClick={() => fileInputRefs.current[q.id]?.click()}
+                                        className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                                        title="Anexar arquivo"
+                                    >
+                                        <Paperclip size={16} />
+                                    </button>
+                                    <input 
+                                        type="file" 
+                                        // FIX: Correct ref callback to return void.
+                                        ref={el => { fileInputRefs.current[q.id] = el; }}
+                                        onChange={(e) => handleAttachmentUpload(e, q.id)}
+                                        className="hidden"
+                                    />
+                                </div>
+                             </div>
+                        </div>
+                    ))}
+                    {section.questions.length === 0 && (
+                        <p className="text-center text-gray-500 py-4">Nenhuma pergunta nesta seção. Adicione uma para começar.</p>
+                    )}
+                </main>
+            )}
+            {isManageModalOpen && (
+                <ManageQuestionsModal 
+                    questions={section.questions}
+                    onClose={() => setManageModalOpen(false)}
+                    onSave={handleSaveManagedQuestions}
+                />
+            )}
+        </div>
+    );
+};
+
+const ManageQuestionsModal: React.FC<{
+    questions: ClientInfoQuestion[];
+    onClose: () => void;
+    onSave: (newQuestionText: string, idsToDelete: string[]) => void;
+}> = ({ questions, onClose, onSave }) => {
+    const [newQuestion, setNewQuestion] = useState('');
+    const [idsToDelete, setIdsToDelete] = useState<Set<string>>(new Set());
+
+    const handleToggleDelete = (id: string) => {
+        setIdsToDelete(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSaveChanges = () => {
+        onSave(newQuestion.trim(), Array.from(idsToDelete));
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-indigo-700/50 flex flex-col max-h-[90vh]">
+                <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
+                    <h2 className="text-xl font-bold">Gerenciar Perguntas</h2>
+                    <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+                </header>
+                <main className="p-6 space-y-6 overflow-y-auto">
+                    <div>
+                        <h3 className="font-semibold text-lg mb-2 text-indigo-300">Adicionar Nova Pergunta</h3>
+                        <input
+                            type="text"
+                            value={newQuestion}
+                            onChange={(e) => setNewQuestion(e.target.value)}
+                            placeholder="Digite sua pergunta customizada aqui"
+                            className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-lg mb-2 text-red-300">Remover Perguntas</h3>
+                        <p className="text-sm text-gray-400 mb-3">Selecione as perguntas customizadas que deseja remover. Perguntas padrão não podem ser removidas.</p>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            {questions.map(q => (
+                                <div key={q.id} className={`flex items-center p-3 rounded-md ${q.isDefault ? 'bg-gray-700/50 opacity-60' : 'bg-gray-700'}`}>
+                                    <input
+                                        type="checkbox"
+                                        id={`del-${q.id}`}
+                                        disabled={q.isDefault}
+                                        checked={idsToDelete.has(q.id)}
+                                        onChange={() => handleToggleDelete(q.id)}
+                                        className="h-4 w-4 rounded border-gray-500 bg-gray-800 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                                    />
+                                    <label htmlFor={`del-${q.id}`} className={`ml-3 block text-sm flex-1 ${q.isDefault ? 'text-gray-500' : 'text-gray-300'}`}>
+                                        {q.question}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </main>
+                <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                    <button type="button" onClick={handleSaveChanges} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Alterações</button>
+                </footer>
+            </div>
+        </div>
+    );
+};
+
+const AttachmentChip: React.FC<{ attachment: Attachment; onDelete: () => void; }> = ({ attachment, onDelete }) => {
+    return (
+        <div className="bg-indigo-900/70 text-indigo-200 text-xs font-medium rounded-full flex items-center">
+            <a 
+                href={`data:${attachment.type};base64,${attachment.data}`} 
+                download={attachment.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 pl-3 pr-2 py-1 hover:bg-indigo-800/50 rounded-l-full"
+                title={`Download ${attachment.name}`}
+            >
+                <FileIcon size={12} />
+                <span>{attachment.name.length > 20 ? `${attachment.name.substring(0, 18)}...` : attachment.name}</span>
+            </a>
+            <button 
+                onClick={onDelete} 
+                className="p-1.5 hover:bg-red-900/50 rounded-r-full"
+                title="Remover anexo"
+            >
+                <X size={12} />
+            </button>
+        </div>
+    )
+}
+
+// Weekly Planning View
+const WeeklyPlanningView: React.FC = () => {
+    const { activeClient, addWeeklyPlan } = useData();
+    if (!activeClient) return null;
+
+    const sortedPlans = [...(activeClient.weeklyPlans || [])].sort((a, b) => b.weekNumber - a.weekNumber);
+
+    return (
+        <div className="space-y-8">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-white">Planejamento Semanal</h2>
+                    <p className="text-gray-400">Organize as ações e objetivos de cada semana.</p>
+                </div>
+                <button
+                    onClick={() => addWeeklyPlan(activeClient.id)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
+                >
+                    <Plus className="h-4 w-4" />
+                    Adicionar Semana
+                </button>
+            </div>
+            
+            {sortedPlans.length === 0 ? (
+                <div className="text-center p-12 bg-gray-800/30 rounded-lg">
+                    <ClipboardCheck className="mx-auto w-12 h-12 text-gray-500 mb-4" />
+                    <h3 className="text-xl font-bold mb-2">Nenhum plano semanal criado</h3>
+                    <p className="text-gray-400">Clique em "Adicionar Semana" para começar o planejamento.</p>
+                </div>
+            ) : (
+                <div className="space-y-12">
+                    {sortedPlans.map(plan => (
+                        <WeeklyKanban key={plan.id} plan={plan} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const WeeklyKanban: React.FC<{ plan: WeeklyPlan }> = ({ plan }) => {
+    const { activeClient, deleteWeeklyPlan, addKanbanCard, updateKanbanCard, deleteKanbanCard } = useData();
+    const [cardToEdit, setCardToEdit] = useState<Partial<KanbanCard> | null>(null);
+    
+    if (!activeClient) return null;
+
+    const handleDeleteWeek = () => {
+        if (window.confirm(`Tem certeza que deseja excluir a Semana ${plan.weekNumber} e todas as suas tarefas?`)) {
+            deleteWeeklyPlan(activeClient.id, plan.id);
+        }
+    };
+    
+    const handleSaveCard = (cardData: Omit<KanbanCard, 'id' | 'status'>) => {
+        if(cardToEdit && 'id' in cardToEdit && cardToEdit.id) {
+            updateKanbanCard(activeClient.id, plan.id, cardToEdit.id, cardData);
+        } else {
+            addKanbanCard(activeClient.id, plan.id, cardData);
+        }
+        setCardToEdit(null);
+    };
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, cardId: string) => {
+        e.dataTransfer.setData('cardId', cardId);
+        e.dataTransfer.setData('planId', plan.id);
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, status: KanbanCardStatus) => {
+        e.preventDefault();
+        const cardId = e.dataTransfer.getData('cardId');
+        const sourcePlanId = e.dataTransfer.getData('planId');
+        
+        if (cardId && sourcePlanId === plan.id) {
+            updateKanbanCard(activeClient.id, plan.id, cardId, { status });
+        }
+    };
+
+    const columns: { status: KanbanCardStatus; title: string }[] = [
+        { status: 'todo', title: 'A Fazer' },
+        { status: 'doing', title: 'Em Andamento' },
+        { status: 'done', title: 'Concluído' },
+    ];
+
+    return (
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h3 className="text-xl font-bold text-white">Semana {plan.weekNumber}</h3>
+                    <p className="text-sm text-gray-400">{formatDate(plan.startDate)} - {formatDate(plan.endDate)}</p>
+                </div>
+                <button
+                    onClick={handleDeleteWeek}
+                    className="p-2 rounded-full hover:bg-red-900/50 transition-colors"
+                    title="Excluir Semana"
+                >
+                    <Trash2 className="w-5 h-5 text-red-400" />
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {columns.map(({status, title}) => {
+                    const cardsInColumn = plan.cards.filter(c => c.status === status);
+                    return (
+                        <KanbanColumn
+                            key={status}
+                            title={title}
+                            status={status}
+                            cards={cardsInColumn}
+                            onDrop={handleDrop}
+                            onDragStart={handleDragStart}
+                            onAddNew={() => setCardToEdit({ status })}
+                            onEditCard={setCardToEdit}
+                        />
+                    );
+                })}
+            </div>
+            {cardToEdit && (
+                <EditCardModal 
+                    card={cardToEdit}
+                    onClose={() => setCardToEdit(null)}
+                    onSave={handleSaveCard}
+                />
+            )}
+        </div>
+    );
+};
+
+const KanbanColumn: React.FC<{
+    title: string;
+    status: KanbanCardStatus;
+    cards: KanbanCard[];
+    onDrop: (e: React.DragEvent<HTMLDivElement>, status: KanbanCardStatus) => void;
+    onDragStart: (e: React.DragEvent<HTMLDivElement>, cardId: string) => void;
+    onAddNew: () => void;
+    onEditCard: (card: KanbanCard) => void;
+}> = ({ title, status, cards, onDrop, onDragStart, onAddNew, onEditCard }) => {
+    const [isDragOver, setIsDragOver] = useState(false);
+    return (
+        <div
+            onDrop={(e) => { onDrop(e, status); setIsDragOver(false); }}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            className={`flex flex-col bg-gray-900/50 p-4 rounded-lg transition-all ${isDragOver ? 'ring-2 ring-indigo-500' : 'ring-0'}`}
+        >
+            <h4 className="font-semibold text-white mb-4 flex justify-between items-center">
+                {title}
+                <span className="text-sm font-normal bg-gray-700 text-gray-300 rounded-full w-6 h-6 flex items-center justify-center">{cards.length}</span>
+            </h4>
+            <div className="flex-1 space-y-4 min-h-[100px]">
+                {cards.map(card => (
+                    <KanbanCardComponent 
+                        key={card.id} 
+                        card={card}
+                        onDragStart={(e) => onDragStart(e, card.id)}
+                        onEdit={() => onEditCard(card)}
+                    />
+                ))}
+            </div>
+            <button
+                onClick={onAddNew}
+                className="mt-4 w-full text-sm text-gray-400 hover:text-white hover:bg-gray-700 p-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            >
+                <Plus size={16} /> Adicionar Ação
+            </button>
+        </div>
+    );
+};
+
+const KanbanCardComponent: React.FC<{ card: KanbanCard; onDragStart: (e: React.DragEvent<HTMLDivElement>) => void; onEdit: () => void; }> = ({ card, onDragStart, onEdit }) => {
+    const {activeClient, deleteKanbanCard} = useData();
+
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if(activeClient && window.confirm("Tem certeza que deseja excluir esta ação?")){
+            const plan = activeClient.weeklyPlans.find(p => p.cards.some(c => c.id === card.id));
+            if(plan) {
+                deleteKanbanCard(activeClient.id, plan.id, card.id);
+            }
+        }
+    };
+
+    return (
+        <div
+            draggable
+            onDragStart={onDragStart}
+            className="bg-gray-800 p-3 rounded-lg border border-gray-700 group cursor-grab active:cursor-grabbing"
+        >
+            <div className="flex justify-between items-start">
+                <h5 className="font-bold text-sm text-gray-200 mb-1">{card.title}</h5>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    <button onClick={onEdit} className="p-1 text-gray-400 hover:text-white"><Edit size={14} /></button>
+                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400"><Trash2 size={14} /></button>
+                </div>
+            </div>
+            <p className="text-xs text-indigo-300 mb-2 bg-indigo-900/50 inline-block px-2 py-0.5 rounded">{card.goal}</p>
+            <div className="flex justify-between items-center text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700/50">
+                <div className="flex items-center gap-1.5">
+                    <User size={12} />
+                    <span>{card.assignee || 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <Calendar size={12} />
+                    <span>{card.dueDate ? formatDate(card.dueDate) : 'N/A'}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const EditCardModal: React.FC<{ card: Partial<KanbanCard>; onClose: () => void; onSave: (cardData: Omit<KanbanCard, 'id' | 'status'>) => void; }> = ({ card, onClose, onSave }) => {
+    const [formData, setFormData] = useState({
+        title: card.title || '',
+        goal: card.goal || '',
+        description: card.description || '',
+        assignee: card.assignee || '',
+        dueDate: card.dueDate ? new Date(card.dueDate).toISOString().split('T')[0] : '',
+    });
+    
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave({
+            ...formData,
+            dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : '',
+        });
+    };
+
+    return (
+         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-indigo-700/50">
+                <form onSubmit={handleSubmit}>
+                    <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
+                        <h2 className="text-xl font-bold">{card.id ? "Editar Ação" : "Nova Ação"}</h2>
+                        <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+                    </header>
+                    <main className="p-6 space-y-4">
+                        <div>
+                             <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">Nome da Ação</label>
+                             <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full input-style" />
+                        </div>
+                         <div>
+                             <label htmlFor="goal" className="block text-sm font-medium text-gray-300 mb-1">Objetivo da Semana</label>
+                             <input type="text" name="goal" value={formData.goal} onChange={handleChange} required className="w-full input-style" />
+                        </div>
+                        <div>
+                            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
+                            <textarea name="description" value={formData.description} onChange={handleChange} rows={4} className="w-full input-style"></textarea>
+                        </div>
+                         <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label htmlFor="assignee" className="block text-sm font-medium text-gray-300 mb-1">Responsável</label>
+                                <input type="text" name="assignee" value={formData.assignee} onChange={handleChange} className="w-full input-style" />
+                            </div>
+                             <div>
+                                <label htmlFor="dueDate" className="block text-sm font-medium text-gray-300 mb-1">Prazo</label>
+                                <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} className="w-full input-style" />
+                            </div>
+                        </div>
+                    </main>
+                    <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar</button>
+                    </footer>
+                </form>
+            </div>
+            <style>{`.input-style { background-color: #1f2937; border: 1px solid #4b5563; color: white; padding: 8px 12px; border-radius: 6px; } .input-style:focus { outline: none; ring: 2px; ring-color: #6366f1; border-color: #6366f1 }`}</style>
+        </div>
+    )
+};
+
 
 // Editing Cart Bar
 const EditingCartBar: React.FC<{

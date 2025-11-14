@@ -1,4 +1,4 @@
-import { Pillar } from './types';
+import { Pillar, ClientInfoData, ClientInfoSectionId } from './types';
 import type { Icon } from 'lucide-react';
 
 // We can't import lucide-react here as it's a value, so we'll pass them as props.
@@ -133,6 +133,80 @@ export const PILLAR_QUESTIONS: Record<Pillar, string[]> = {
 
 export const INITIAL_PILLAR_SCORE = { responses: Array(10).fill(0), goal: 80, notes: '' };
 
+export const CLIENT_INFO_SECTIONS_ORDER: ClientInfoSectionId[] = [
+    'summary', 'basic', 'metrics', 'funnel', 'competitors', 'materials', 'background', 'goals', 'contacts'
+];
+
+export const DEFAULT_CLIENT_INFO: ClientInfoData = {
+    summary: {
+        title: 'Resumo Executivo',
+        questions: [
+            { id: 's1', question: 'Qual é a descrição geral do cliente e seu principal negócio?', answer: '', isDefault: true, attachments: [] },
+            { id: 's2', question: 'Qual o principal problema que a nossa solução resolve para ele?', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    basic: {
+        title: 'Dados Básicos',
+        questions: [
+            { id: 'b1', question: 'Nome da Empresa', answer: '', isDefault: true, attachments: [] },
+            { id: 'b2', question: 'Setor de Atuação', answer: '', isDefault: true, attachments: [] },
+            { id: 'b3', question: 'Tamanho da Empresa (nº de funcionários)', answer: '', isDefault: true, attachments: [] },
+            { id: 'b4', question: 'Localização (Sede)', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    metrics: {
+        title: 'Métricas Principais',
+        questions: [
+            { id: 'm1', question: 'Receita Anual (faturamento)', answer: '', isDefault: true, attachments: [] },
+            { id: 'm2', question: 'Taxa de Crescimento Anual (%)', answer: '', isDefault: true, attachments: [] },
+            { id: 'm3', question: 'Principais KPIs que eles acompanham', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    funnel: {
+        title: 'Funil de Vendas',
+        questions: [
+            { id: 'f1', question: 'Quais são as principais etapas do funil de vendas do cliente?', answer: '', isDefault: true, attachments: [] },
+            { id: 'f2', question: 'Métricas de conversão entre as etapas', answer: '', isDefault: true, attachments: [] },
+            { id: 'f3', question: 'Qual a duração média do ciclo de vendas?', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    competitors: {
+        title: 'Concorrentes',
+        questions: [
+            { id: 'c1', question: 'Quem são os principais concorrentes?', answer: '', isDefault: true, attachments: [] },
+            { id: 'c2', question: 'Quais são os nossos principais diferenciais competitivos na visão deles?', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    materials: {
+        title: 'Materiais de Apoio',
+        questions: [
+            { id: 'ma1', question: 'Links para documentos importantes (apresentações, propostas)', answer: '', isDefault: true, attachments: [] },
+            { id: 'ma2', question: 'Links para o site, blog, redes sociais', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    background: {
+        title: 'Histórico e Desafios',
+        questions: [
+            { id: 'bg1', question: 'Qual a história da empresa?', answer: '', isDefault: true, attachments: [] },
+            { id: 'bg2', question: 'Quais foram os principais desafios que os levaram a nos contratar?', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    goals: {
+        title: 'Objetivos',
+        questions: [
+            { id: 'g1', question: 'Quais são as metas de curto, médio e longo prazo do cliente?', answer: '', isDefault: true, attachments: [] },
+            { id: 'g2', question: 'Qual é o roadmap de produto/serviço deles?', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+    contacts: {
+        title: 'Contatos Chave',
+        questions: [
+            { id: 'ct1', question: 'Quem é o principal decisor? (Nome, Cargo, Contato)', answer: '', isDefault: true, attachments: [] },
+            { id: 'ct2', question: 'Quem é o principal ponto de contato no dia-a-dia? (Nome, Cargo, Contato)', answer: '', isDefault: true, attachments: [] },
+        ],
+    },
+};
+
 export const DUMMY_CLIENTS_DATA = [
     {
         id: 'client-1',
@@ -168,5 +242,19 @@ export const DUMMY_CLIENTS_DATA = [
                 overallMaturity: 67, // Recalculated
             }
         ],
+        deliverables: [],
+        weeklyPlans: [],
+        clientInfo: {
+            ...DEFAULT_CLIENT_INFO,
+            basic: {
+                ...DEFAULT_CLIENT_INFO.basic,
+                questions: [
+                    { ...DEFAULT_CLIENT_INFO.basic.questions[0], answer: 'Nexus Corp'},
+                    { ...DEFAULT_CLIENT_INFO.basic.questions[1], answer: 'Tecnologia B2B'},
+                    { ...DEFAULT_CLIENT_INFO.basic.questions[2], answer: '250 funcionários'},
+                    { ...DEFAULT_CLIENT_INFO.basic.questions[3], answer: 'São Paulo, SP'},
+                ]
+            }
+        },
     }
 ];

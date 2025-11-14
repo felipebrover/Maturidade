@@ -3,14 +3,9 @@ import type { Client, Assessment, Pillar } from '../types';
 import { PILLARS, PILLAR_DATA } from '../constants';
 import { calculatePillarScore } from '../utils';
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  // This is a fallback for development. In a real environment, the key should be set.
-  console.warn("API_KEY environment variable not set. Gemini API calls will fail.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Fix: Per Gemini API guidelines, initialize the SDK with process.env.API_KEY.
+// This also resolves the TypeScript error related to 'import.meta.env'.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const formatAssessmentData = (assessment: Assessment) => {
     let result = `Data: ${new Date(assessment.date).toLocaleDateString('pt-BR')}\n`;
@@ -25,9 +20,7 @@ const formatAssessmentData = (assessment: Assessment) => {
 
 
 export const generateExecutiveSummary = async (client: Client): Promise<string> => {
-    if (!API_KEY) {
-        return "Erro: A chave da API do Gemini não foi configurada. Por favor, configure a variável de ambiente API_KEY.";
-    }
+    // Fix: Removed check for API key, as per guidelines to assume it's always available.
 
     if (client.assessments.length < 1) {
         return "Não há dados de avaliação suficientes para gerar um resumo.";

@@ -1264,7 +1264,6 @@ const ClientInfoSection: React.FC<{ sectionId: ClientInfoSectionId }> = ({ secti
                                     </button>
                                     <input 
                                         type="file" 
-                                        // FIX: Correct ref callback to return void.
                                         ref={el => { fileInputRefs.current[q.id] = el; }}
                                         onChange={(e) => handleAttachmentUpload(e, q.id)}
                                         className="hidden"

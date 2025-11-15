@@ -1805,274 +1805,27 @@ const PlanningView: React.FC = () => {
     );
 };
 
-const EditableField: React.FC<{ value: string, onSave: (newValue: string) => void, children: React.ReactNode, isAdmin: boolean, textClass?: string, inputClass?: string }> = ({ value, onSave, children, isAdmin, textClass, inputClass }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [text, setText] = useState(value);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const handleSave = () => {
-        if(text.trim()) {
-            onSave(text.trim());
-        }
-        setIsEditing(false);
-    };
-    
-    useEffect(() => {
-        if(isEditing) {
-            inputRef.current?.focus();
-            inputRef.current?.select();
-        }
-    }, [isEditing]);
-    
-    if(!isAdmin) return <div className={textClass}>{children}</div>;
-
-    return isEditing ? (
-        <input
-            ref={inputRef}
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className={`bg-gray-900/50 p-1 rounded-md border border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${inputClass}`}
-        />
-    ) : (
-        <div onClick={() => setIsEditing(true)} className={`cursor-pointer ${textClass}`}>
-            {children}
-        </div>
-    );
-}
-
-const ActionItem: React.FC<{ action: Action; journey: Journey; initiative: Initiative }> = ({ action, journey, initiative }) => {
-    const { activeClient, currentUser, toggleActionComplete, updateAction, deleteAction, addKanbanCard } = useData();
-    if (!activeClient) return null;
-    const isAdmin = currentUser?.role === 'admin';
-
-    const handleUpdateName = (name: string) => updateAction(activeClient.id, journey.id, journey.objectives[0].id, journey.objectives[0].keyResults[0].id, initiative.id, action.id, name);
-    const handleDelete = () => window.confirm("Excluir esta ação?") && deleteAction(activeClient.id, journey.id, journey.objectives[0].id, journey.objectives[0].keyResults[0].id, initiative.id, action.id);
-    const handleToggle = () => toggleActionComplete(activeClient.id, journey.id, journey.objectives[0].id, journey.objectives[0].keyResults[0].id, initiative.id, action.id);
-    
-    const handleAddToKanban = () => {
-        const latestPlan = activeClient.weeklyPlans.length > 0 ? activeClient.weeklyPlans.reduce((a, b) => a.weekNumber > b.weekNumber ? a : b) : null;
-        if (latestPlan) {
-            const cardData = {
-                title: action.name,
-                description: `Ação vinculada à iniciativa "${initiative.name}" da jornada "${journey.name}".`,
-                assignee: '',
-                dueDate: new Date().toISOString(),
-                goal: '',
-                actionId: action.id,
-                journeyId: journey.id,
-            };
-            addKanbanCard(activeClient.id, latestPlan.id, cardData, 'todo');
-        } else {
-            alert("Crie uma semana no Kanban primeiro para adicionar esta ação.");
-        }
-    };
-
-    return (
-        <div className="flex items-center gap-2 group p-1.5 rounded-md hover:bg-gray-700/50">
-            {isAdmin ? <button onClick={handleToggle}>{action.isCompleted ? <CheckSquare size={16} className="text-green-400"/> : <Square size={16} className="text-gray-500"/>}</button> : (action.isCompleted ? <CheckSquare size={16} className="text-green-400"/> : <Square size={16} className="text-gray-500"/>)}
-            <div className="flex-1">
-                <EditableField value={action.name} onSave={handleUpdateName} isAdmin={isAdmin} textClass={`text-sm ${action.isCompleted ? 'line-through text-gray-500' : ''}`} inputClass="text-sm w-full">
-                    {action.name}
-                </EditableField>
-            </div>
-            {isAdmin && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                    <button disabled={action.isInKanban} onClick={handleAddToKanban} className="p-1 text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed" title={action.isInKanban ? "Já está no Kanban" : "Adicionar ao Kanban"}><ClipboardCheck size={14}/></button>
-                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400"><Trash2 size={14}/></button>
-                </div>
-            )}
-        </div>
-    );
-};
-
-const InitiativeItem: React.FC<{ initiative: Initiative; journey: Journey; objective: Objective; keyResult: KeyResult }> = ({ initiative, journey, objective, keyResult }) => {
-    const { activeClient, currentUser, updateInitiative, deleteInitiative, addAction } = useData();
-    const [isExpanded, setIsExpanded] = useState(true);
-    if (!activeClient) return null;
-    const isAdmin = currentUser?.role === 'admin';
-    
-    const handleUpdateName = (name: string) => updateInitiative(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, name);
-    const handleDelete = () => window.confirm("Excluir esta iniciativa e todas as suas ações?") && deleteInitiative(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id);
-    const handleAddAction = () => { const name = prompt("Nova ação:"); if(name) addAction(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, name); }
-
-    return (
-        <div className="ml-5 pl-4 border-l-2 border-gray-700">
-            <div className="flex items-center gap-2 group">
-                <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
-                <ListChecks size={16} className="text-cyan-400"/>
-                <div className="flex-1 font-semibold">
-                    <EditableField value={initiative.name} onSave={handleUpdateName} isAdmin={isAdmin} textClass="text-cyan-400" inputClass="w-full text-cyan-400 font-semibold">
-                        {initiative.name}
-                    </EditableField>
-                </div>
-                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={handleAddAction} className="p-1 text-gray-400 hover:text-white" title="Adicionar Ação"><Plus size={14}/></button>
-                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400" title="Excluir Iniciativa"><Trash2 size={14}/></button>
-                </div>}
-            </div>
-            {isExpanded && <div className="mt-2 ml-4 space-y-1">
-                {initiative.actions.map(action => <ActionItem key={action.id} action={action} journey={journey} initiative={initiative}/>)}
-                {isAdmin && <button onClick={handleAddAction} className="text-xs text-gray-500 hover:text-white p-1">+ Adicionar ação</button>}
-            </div>}
-        </div>
-    );
-};
-
-const KeyResultItem: React.FC<{ keyResult: KeyResult; journey: Journey; objective: Objective }> = ({ keyResult, journey, objective }) => {
-    const { activeClient, currentUser, updateKeyResult, deleteKeyResult, addInitiative } = useData();
-    const [isExpanded, setIsExpanded] = useState(true);
-    if (!activeClient) return null;
-    const isAdmin = currentUser?.role === 'admin';
-
-    const handleUpdateName = (name: string) => updateKeyResult(activeClient.id, journey.id, objective.id, keyResult.id, name, keyResult.progress);
-    const handleProgressChange = (progress: number) => updateKeyResult(activeClient.id, journey.id, objective.id, keyResult.id, keyResult.name, progress);
-    const handleDelete = () => window.confirm("Excluir este Resultado-Chave e seus itens?") && deleteKeyResult(activeClient.id, journey.id, objective.id, keyResult.id);
-    const handleAddInitiative = () => { const name = prompt("Nova iniciativa:"); if(name) addInitiative(activeClient.id, journey.id, objective.id, keyResult.id, name); }
-    
-    return (
-        <div className="ml-5 pl-4 border-l-2 border-gray-700">
-            <div className="flex items-center gap-2 group">
-                <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
-                <Milestone size={16} className="text-amber-400"/>
-                <div className="flex-1">
-                    <EditableField value={keyResult.name} onSave={handleUpdateName} isAdmin={isAdmin} inputClass="w-full">
-                        {keyResult.name}
-                    </EditableField>
-                </div>
-                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={handleAddInitiative} className="p-1 text-gray-400 hover:text-white" title="Adicionar Iniciativa"><Plus size={14}/></button>
-                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400" title="Excluir Resultado-Chave"><Trash2 size={14}/></button>
-                </div>}
-            </div>
-            <div className="flex items-center gap-2 ml-8 mt-2">
-                <span className="text-xs text-amber-400 font-bold w-10">{keyResult.progress}%</span>
-                <input type="range" min="0" max="100" value={keyResult.progress} onChange={e => handleProgressChange(parseInt(e.target.value))} disabled={!isAdmin} className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500" />
-            </div>
-            {isExpanded && <div className="mt-2 space-y-2">
-                {keyResult.initiatives.map(initiative => <InitiativeItem key={initiative.id} initiative={initiative} journey={journey} objective={objective} keyResult={keyResult}/>)}
-                {isAdmin && <button onClick={handleAddInitiative} className="text-xs text-gray-500 hover:text-white p-1 ml-5">+ Adicionar iniciativa</button>}
-            </div>}
-        </div>
-    );
-};
-
-const ObjectiveItem: React.FC<{ objective: Objective; journey: Journey }> = ({ objective, journey }) => {
-    const { activeClient, currentUser, updateObjective, deleteObjective, addKeyResult } = useData();
-    const [isExpanded, setIsExpanded] = useState(true);
-    if (!activeClient) return null;
-    const isAdmin = currentUser?.role === 'admin';
-
-    const handleUpdateName = (name: string) => updateObjective(activeClient.id, journey.id, objective.id, name);
-    const handleDelete = () => window.confirm("Excluir este objetivo e seus itens?") && deleteObjective(activeClient.id, journey.id, objective.id);
-    const handleAddKeyResult = () => { const name = prompt("Novo Resultado-Chave:"); if(name) addKeyResult(activeClient.id, journey.id, objective.id, name); }
-
-    return (
-        <div className="ml-5 pl-4 border-l-2 border-gray-700">
-            <div className="flex items-center gap-2 group">
-                <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
-                <CircleDot size={16} className="text-fuchsia-400"/>
-                <div className="flex-1 text-md font-semibold">
-                     <EditableField value={objective.name} onSave={handleUpdateName} isAdmin={isAdmin} textClass="text-fuchsia-400" inputClass="w-full text-md font-semibold text-fuchsia-400">
-                        {objective.name}
-                    </EditableField>
-                </div>
-                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={handleAddKeyResult} className="p-1 text-gray-400 hover:text-white" title="Adicionar Resultado-Chave"><Plus size={14}/></button>
-                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400" title="Excluir Objetivo"><Trash2 size={14}/></button>
-                </div>}
-            </div>
-            {isExpanded && <div className="mt-2 space-y-2">
-                {objective.keyResults.map(kr => <KeyResultItem key={kr.id} keyResult={kr} journey={journey} objective={objective} />)}
-                {isAdmin && <button onClick={handleAddKeyResult} className="text-xs text-gray-500 hover:text-white p-1 ml-5">+ Adicionar resultado-chave</button>}
-            </div>}
-        </div>
-    );
-};
-
-const JourneyItem: React.FC<{ journey: Journey }> = ({ journey }) => {
-    const { activeClient, currentUser, updateJourney, deleteJourney, addObjective } = useData();
-    const [isExpanded, setIsExpanded] = useState(true);
-    const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
-    if (!activeClient) return null;
-    const isAdmin = currentUser?.role === 'admin';
-    const colors = ['#4f46e5', '#db2777', '#7c3aed', '#2563eb', '#0d9488', '#f59e0b'];
-
-    const handleUpdateName = (name: string) => updateJourney(activeClient.id, journey.id, name, journey.color);
-    const handleColorChange = (color: string) => { updateJourney(activeClient.id, journey.id, journey.name, color); setIsColorPickerOpen(false); };
-    const handleDelete = () => window.confirm("Excluir esta jornada e todos os seus itens?") && deleteJourney(activeClient.id, journey.id);
-    const handleAddObjective = () => { const name = prompt("Novo objetivo:"); if (name) addObjective(activeClient.id, journey.id, name); };
-
-    return (
-        <div className="bg-gray-800/50 rounded-xl border border-indigo-800/30">
-            <header className="p-3 flex justify-between items-center group">
-                <div className="flex items-center gap-3 flex-1">
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={20} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
-                    <div className="relative">
-                        <button onClick={() => isAdmin && setIsColorPickerOpen(!isColorPickerOpen)} style={{ backgroundColor: journey.color }} className={`w-4 h-4 rounded-full ${isAdmin ? 'cursor-pointer' : ''}`}></button>
-                        {isColorPickerOpen && <div className="absolute top-6 left-0 bg-gray-900 p-2 rounded-md border border-gray-700 flex gap-2 z-10">
-                            {colors.map(c => <button key={c} style={{backgroundColor: c}} className="w-5 h-5 rounded-full" onClick={() => handleColorChange(c)}></button>)}
-                        </div>}
-                    </div>
-                    <div className="flex-1 text-lg font-bold">
-                        <EditableField value={journey.name} onSave={handleUpdateName} isAdmin={isAdmin} inputClass="w-full text-lg font-bold">
-                           {journey.name}
-                        </EditableField>
-                    </div>
-                </div>
-                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={handleAddObjective} className="p-2 text-gray-400 hover:text-white" title="Adicionar Objetivo"><Plus size={16}/></button>
-                    <button onClick={handleDelete} className="p-2 text-gray-400 hover:text-red-400" title="Excluir Jornada"><Trash2 size={16}/></button>
-                </div>}
-            </header>
-            {isExpanded && (
-                <div className="p-4 border-t border-indigo-800/50 space-y-2">
-                    {journey.objectives.map(obj => <ObjectiveItem key={obj.id} objective={obj} journey={journey} />)}
-                     {isAdmin && <button onClick={handleAddObjective} className="text-sm text-gray-500 hover:text-white p-1 ml-5">+ Adicionar objetivo</button>}
-                </div>
-            )}
-        </div>
-    );
-};
-
 const GoalsView: React.FC = () => {
+    // This will be the main component for the entire goal hierarchy
     const { activeClient, addJourney, currentUser } = useData();
-    const [newJourneyName, setNewJourneyName] = useState('');
-
     if (!activeClient) return null;
-
-    const handleAddJourney = () => {
-        if (newJourneyName.trim()) {
-            addJourney(activeClient.id, newJourneyName.trim());
-            setNewJourneyName('');
-        }
-    };
 
     return (
         <div className="space-y-4">
-            {activeClient.journeys.map(journey => (
+             {activeClient.journeys.map(journey => (
                 <JourneyItem key={journey.id} journey={journey} />
-            ))}
-            {currentUser?.role === 'admin' && (
-                <div className="flex gap-2 p-3 bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-700">
-                    <input
-                        type="text"
-                        value={newJourneyName}
-                        onChange={(e) => setNewJourneyName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddJourney()}
-                        placeholder="Nome da nova jornada estratégica..."
-                        className="flex-1 bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500"
-                    />
-                    <button 
-                        onClick={handleAddJourney} 
-                        className="flex items-center justify-center gap-2 px-4 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors">
-                        <Plus size={16} /> Adicionar Jornada
-                    </button>
-                </div>
-            )}
-            {activeClient.journeys.length === 0 && (
+             ))}
+             {currentUser?.role === 'admin' && (
+                <button 
+                    onClick={() => {
+                        const name = prompt("Nome da nova jornada:");
+                        if (name) addJourney(activeClient.id, name);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 p-3 text-sm font-semibold text-gray-400 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-700 hover:border-indigo-600 transition-colors">
+                    <Plus size={16} /> Adicionar Jornada
+                </button>
+             )}
+             {activeClient.journeys.length === 0 && (
                 <div className="text-center p-12 bg-gray-800/30 rounded-lg">
                     <Target className="mx-auto w-12 h-12 text-gray-500 mb-4" />
                     <h3 className="text-xl font-bold mb-2">Sem Metas Definidas</h3>
@@ -2083,6 +1836,29 @@ const GoalsView: React.FC = () => {
     );
 };
 
+const JourneyItem: React.FC<{ journey: Journey }> = ({ journey }) => {
+    // Dummy component for now, will be implemented with full hierarchy
+    const [isExpanded, setIsExpanded] = useState(true);
+    return (
+        <div className="bg-gray-800/50 rounded-xl border border-indigo-800/50">
+            <header 
+                className="p-4 flex justify-between items-center cursor-pointer"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full" style={{backgroundColor: journey.color}}></div>
+                    <h3 className="text-lg font-bold">{journey.name}</h3>
+                </div>
+                <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            </header>
+            {isExpanded && (
+                <div className="p-4 border-t border-indigo-800/50">
+                    <p className="text-sm text-gray-400">Detalhes e objetivos da jornada irão aqui.</p>
+                </div>
+            )}
+        </div>
+    );
+}
 
 const KanbanBoardView: React.FC = () => {
     const { activeClient, addWeeklyPlan, deleteWeeklyPlan, currentUser } = useData();

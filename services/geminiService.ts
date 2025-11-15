@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import type { Client, Assessment, Pillar } from '../types';
+import type { Client, Assessment, Pillar, Deliverable } from '../types';
 import { PILLARS, PILLAR_DATA } from '../constants';
 import { calculatePillarScore } from '../utils';
 
@@ -67,5 +67,56 @@ O resultado deve ser um texto corrido, sem usar listas numeradas, e formatado co
     } catch (error) {
         console.error("Error calling Gemini API:", error);
         return "Ocorreu um erro ao gerar o resumo. Verifique o console para mais detalhes.";
+    }
+};
+
+export const generateChatResponseWithContext = async (
+    question: string,
+    contextDocuments: Deliverable[],
+    tone: string,
+    size: string,
+    orientation: string
+): Promise<string> => {
+    if (contextDocuments.length === 0) {
+        return "Por favor, selecione pelo menos um documento da biblioteca para usar como fonte de conhecimento.";
+    }
+
+    let prompt = `Você é um consultor especialista e assistente de IA. Sua única fonte de conhecimento são os documentos fornecidos abaixo.
+Responda à pergunta do usuário baseando-se EXCLUSIVAMENTE nas informações contidas nestes documentos.
+Se a resposta não estiver nos documentos, diga 'Com base nos documentos fornecidos, não tenho informações sobre isso.'
+
+--- INÍCIO DOS DOCUMENTOS DE CONTEXTO ---
+`;
+
+    for (const doc of contextDocuments) {
+        prompt += `
+Documento: ${doc.name}
+Descrição: ${doc.description}
+Conteúdo:
+${doc.content}
+--------------------------------------
+`;
+    }
+
+    prompt += "--- FIM DOS DOCUMENTOS DE CONTEXTO ---\n\n";
+
+    prompt += `**Instruções para a Resposta:**
+- **Tom:** ${tone || 'Profissional e prestativo'}.
+- **Tamanho da Resposta:** ${size || 'Equilibrado, nem muito curto nem muito longo'}.
+- **Orientações Adicionais:** ${orientation || 'Nenhuma orientação adicional.'}
+- **Formatação OBRIGATÓRIA:** Use Markdown para estruturar a resposta de forma clara e legível. Utilize títulos (#, ##), listas com marcadores (-) e texto em negrito (**) para destacar informações importantes e melhorar a diagramação.
+
+**Pergunta do Usuário:** "${question}"
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error calling Gemini API for chat:", error);
+        return "Ocorreu um erro ao comunicar com a IA. Verifique o console para mais detalhes.";
     }
 };

@@ -1,6 +1,4 @@
-
-
-import { Pillar, ClientInfoData, ClientInfoSectionId } from './types';
+import { Pillar, ClientInfoData, ClientInfoSectionId, Client, User, View } from './types';
 import type { Icon } from 'lucide-react';
 
 // We can't import lucide-react here as it's a value, so we'll pass them as props.
@@ -210,10 +208,29 @@ export const DEFAULT_CLIENT_INFO: ClientInfoData = {
     },
 };
 
-export const DUMMY_CLIENTS_DATA = [
+export const CLIENT_ACCESSIBLE_VIEWS: { id: View; label: string }[] = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'evolution', label: 'Evolução' },
+    { id: 'timeline', label: 'Timeline' },
+    { id: 'library', label: 'Biblioteca' },
+    { id: 'planning', label: 'Planejamento' },
+    { id: 'chatbot', label: 'Chat IA' },
+];
+
+export const INITIAL_USERS: User[] = [
+    {
+        id: 'user-admin-default',
+        username: 'admin',
+        password: 'master',
+        role: 'admin',
+    },
+];
+
+export const DUMMY_CLIENTS_DATA: Client[] = [
     {
         id: 'client-integro',
         name: 'Íntegro Proteção Veicular',
+        logoUrl: '',
         onboardingDate: new Date(new Date().setDate(new Date().getDate() - 9)).toISOString(),
         assessments: [
             {
@@ -296,10 +313,14 @@ export const DUMMY_CLIENTS_DATA = [
                 ],
             },
         },
+        chatSessions: [],
+        // FIX: Added missing 'journeys' property to satisfy the Client type.
+        journeys: [],
     },
     {
         id: 'client-cj',
         name: 'CJ Consultoria Financeira',
+        logoUrl: '',
         onboardingDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
         assessments: [
             {
@@ -375,5 +396,8 @@ export const DUMMY_CLIENTS_DATA = [
                 ],
             },
         },
+        chatSessions: [],
+        // FIX: Added missing 'journeys' property to satisfy the Client type.
+        journeys: [],
     }
 ];

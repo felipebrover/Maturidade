@@ -1,18 +1,18 @@
-
 import React, { useState } from 'react';
 import { useData } from '../App';
 import { Building2 } from 'lucide-react';
 
 const Login: React.FC = () => {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const { login } = useData();
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
-        const success = login(password);
+        const success = login(username, password);
         if (!success) {
-            setError('Senha incorreta. Tente novamente.');
+            setError('Usuário ou senha incorretos. Tente novamente.');
         }
     };
 
@@ -31,10 +31,34 @@ const Login: React.FC = () => {
                 <form className="space-y-6" onSubmit={handleLogin}>
                     <div>
                         <label
+                            htmlFor="username"
+                            className="block text-sm font-medium text-gray-300"
+                        >
+                            Usuário (padrão: admin)
+                        </label>
+                        <div className="mt-1">
+                            <input
+                                id="username"
+                                name="username"
+                                type="text"
+                                value={username}
+                                onChange={(e) => {
+                                    setUsername(e.target.value);
+                                    setError('');
+                                }}
+                                required
+                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Digite seu usuário"
+                            />
+                        </div>
+                    </div>
+
+                     <div>
+                        <label
                             htmlFor="password"
                             className="block text-sm font-medium text-gray-300"
                         >
-                            Senha de Acesso (master)
+                            Senha (padrão: master)
                         </label>
                         <div className="mt-1">
                             <input

@@ -2,13 +2,15 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useData } from '../App';
 import {
     LayoutDashboard, BarChart3, Clock, Briefcase, BotMessageSquare, Library, LogOut, Menu, X, Plus, ChevronsUpDown, Check, FileDown, Rocket, Target, Minus, AlertTriangle, Building, Package, Megaphone, Handshake, Users, SlidersHorizontal, Building2, Compass, Goal, Network, Workflow, BarChartBig, HandCoins, Database, Edit, ChevronDown, ChevronUp, Info, Sheet,
-    UploadCloud, Trash2, FileText, ClipboardCheck, Calendar, GripVertical, User, Paperclip, File as FileIcon
+    UploadCloud, Trash2, FileText, ClipboardCheck, Calendar, GripVertical, User, Paperclip, File as FileIcon, Pencil, SendHorizonal, BrainCircuit, CheckSquare, Square, MessageSquarePlus, Settings, Grip, CircleDot, Milestone, ListChecks
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS, CLIENT_INFO_SECTIONS_ORDER } from '../constants';
-import { generateExecutiveSummary } from '../services/geminiService';
-import { formatDate, calculatePillarScore, calculateOverallMaturity } from '../utils';
-import { Pillar, type PillarScore, type PillarScores, type View, type Assessment, type Deliverable, type WeeklyPlan, type KanbanCard, type KanbanCardStatus, ClientInfoSectionId, ClientInfoQuestion, Attachment } from '../types';
+import { generateExecutiveSummary, generateChatResponseWithContext } from '../services/geminiService';
+import { formatDate, calculatePillarScore, calculateOverallMaturity, fileToDataUrl } from '../utils';
+import { Pillar, type PillarScore, type PillarScores, type View, type Assessment, type Deliverable, type WeeklyPlan, type KanbanCard, type KanbanCardStatus, ClientInfoSectionId, ClientInfoQuestion, Attachment, Client, ChatMessage, ChatSession, Journey, Objective, KeyResult, Initiative, Action } from '../types';
+import SettingsView from './SettingsView';
+
 
 const ICON_MAP: Record<Pillar, React.ElementType> = {
     [Pillar.STRATEGY]: Compass,
@@ -46,7 +48,7 @@ const PrintHeader: React.FC = () => {
 
 // Main Dashboard Component
 const Dashboard: React.FC = () => {
-    const { activeClient, addAssessment, updateAssessment } = useData();
+    const { activeClient, addAssessment, updateAssessment, currentUser } = useData();
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [isSidebarOpen, setSidebarOpen] = useState(false);
 
@@ -63,6 +65,7 @@ const Dashboard: React.FC = () => {
 
 
     const handleStartEditing = (assessment: Assessment) => {
+        if (currentUser?.role !== 'admin') return;
         setEditingAssessment(assessment);
         // Deep copy scores to avoid mutating original state
         setStagedScores(JSON.parse(JSON.stringify(assessment.scores)));
@@ -70,7 +73,7 @@ const Dashboard: React.FC = () => {
     };
     
     const handleStartEditingFromDashboard = (pillar: Pillar) => {
-        if (!activeClient || activeClient.assessments.length === 0) return;
+        if (!activeClient || activeClient.assessments.length === 0 || currentUser?.role !== 'admin') return;
         const latestAssessment = activeClient.assessments[activeClient.assessments.length - 1];
         handleStartEditing(latestAssessment); // Sets editingAssessment and stagedScores
         setModalPillar(pillar); // Opens the modal
@@ -142,7 +145,10 @@ const Dashboard: React.FC = () => {
         setChangedPillars({});
     };
 
-    const handleOpenCreateModal = () => setCreateModalOpen(true);
+    const handleOpenCreateModal = () => {
+        if (currentUser?.role !== 'admin') return;
+        setCreateModalOpen(true);
+    };
     const handleCloseCreateModal = () => setCreateModalOpen(false);
     const handleCreateNewAssessment = (scores: PillarScores) => {
         if (activeClient) {
@@ -153,10 +159,14 @@ const Dashboard: React.FC = () => {
     };
 
 
-    if (!activeClient) {
-        return <div className="p-8">Selecione um cliente para começar.</div>
+    if (!activeClient && currentUser?.role === 'admin') {
+        return <div className="p-8">Selecione ou crie um cliente para começar.</div>
     }
     
+    if (!activeClient && currentUser?.role === 'client') {
+        return <div className="p-8">Você não está associado a nenhum cliente. Entre em contato com o administrador.</div>
+    }
+
     const latestAssessment = useMemo(() => {
         if (!activeClient || activeClient.assessments.length === 0) return null;
         return activeClient.assessments[activeClient.assessments.length - 1];
@@ -170,7 +180,9 @@ const Dashboard: React.FC = () => {
             case 'timeline': return <TimelineView onStartEditing={handleStartEditing} onNewAssessmentClick={handleOpenCreateModal} />;
             case 'meeting': return <MeetingPrepView />;
             case 'library': return <ResourceLibraryView />;
-            case 'planning': return <WeeklyPlanningView />;
+            case 'planning': return <PlanningView />;
+            case 'chatbot': return <ChatbotView />;
+            case 'settings': return currentUser?.role === 'admin' ? <SettingsView /> : <DashboardHome onPillarClick={() => {}} onNewAssessmentClick={() => {}} />;
             default: return <DashboardHome onPillarClick={handleStartEditingFromDashboard} onNewAssessmentClick={handleOpenCreateModal} />;
         }
     };
@@ -186,12 +198,14 @@ const Dashboard: React.FC = () => {
                     {renderView()}
                    </div>
                 </main>
-                <EditingCartBar
-                    changedPillarsCount={Object.keys(changedPillars).length}
-                    onCreateAssessment={handleCreateAssessmentFromCart}
-                    onUpdateAssessment={handleUpdateAssessmentFromCart}
-                    onCancel={handleCancelEditing}
-                />
+                {currentUser?.role === 'admin' && (
+                    <EditingCartBar
+                        changedPillarsCount={Object.keys(changedPillars).length}
+                        onCreateAssessment={handleCreateAssessmentFromCart}
+                        onUpdateAssessment={handleUpdateAssessmentFromCart}
+                        onCancel={handleCancelEditing}
+                    />
+                )}
             </div>
             {isCreateModalOpen && (
                 <CreateAssessmentModal 
@@ -222,16 +236,37 @@ const Dashboard: React.FC = () => {
 
 // Sidebar, Header Components (no major changes) ...
 const Sidebar: React.FC<{ currentView: View, setCurrentView: (view: View) => void, isSidebarOpen: boolean, setSidebarOpen: (isOpen: boolean) => void }> = ({ currentView, setCurrentView, isSidebarOpen, setSidebarOpen }) => {
-    const { logout } = useData();
-    const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'evolution', label: 'Evolução', icon: BarChart3 },
-        { id: 'clientInfo', label: 'Informações', icon: User },
-        { id: 'timeline', label: 'Timeline', icon: Clock },
-        { id: 'planning', label: 'Planejamento', icon: ClipboardCheck },
-        { id: 'meeting', label: 'Reunião IA', icon: BotMessageSquare },
-        { id: 'library', label: 'Biblioteca', icon: Library },
+    const { logout, currentUser } = useData();
+    
+    const allMenuItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'client'] },
+        { id: 'evolution', label: 'Evolução', icon: BarChart3, roles: ['admin', 'client'] },
+        { id: 'clientInfo', label: 'Informações', icon: User, roles: ['admin'] },
+        { id: 'timeline', label: 'Timeline', icon: Clock, roles: ['admin', 'client'] },
+        { id: 'planning', label: 'Planejamento', icon: ClipboardCheck, roles: ['admin', 'client'] },
+        { id: 'meeting', label: 'Diagnóstico IA', icon: BotMessageSquare, roles: ['admin'] },
+        { id: 'library', label: 'Biblioteca', icon: Library, roles: ['admin', 'client'] },
+        { id: 'chatbot', label: 'Chat IA', icon: BrainCircuit, roles: ['admin', 'client'] },
+        { id: 'settings', label: 'Admin', icon: Settings, roles: ['admin'] },
     ];
+
+    const menuItems = useMemo(() => {
+        if (!currentUser) return [];
+
+        if (currentUser.role === 'admin') {
+            return allMenuItems.filter(item => item.roles.includes('admin'));
+        }
+
+        if (currentUser.role === 'client') {
+            // Use defined accessible views, or a safe default.
+            const allowedViews = currentUser.accessibleViews?.length ? currentUser.accessibleViews : ['dashboard', 'evolution'];
+            return allMenuItems.filter(item => 
+                item.roles.includes('client') && allowedViews.includes(item.id as View)
+            );
+        }
+        
+        return [];
+    }, [currentUser]);
 
     return (
         <>
@@ -273,17 +308,187 @@ const Sidebar: React.FC<{ currentView: View, setCurrentView: (view: View) => voi
         </>
     );
 };
+
+const EditClientModal: React.FC<{ client: Client; onClose: () => void; onSave: (data: Partial<Client>) => void; }> = ({ client, onClose, onSave }) => {
+    const [name, setName] = useState(client.name);
+    const [logoUrl, setLogoUrl] = useState<string | null>(client.logoUrl || null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) { // 2MB limit
+                alert("O arquivo é muito grande. O limite é de 2MB.");
+                return;
+            }
+            if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+                alert("Formato de arquivo inválido. Use JPG, PNG, GIF ou WEBP.");
+                return;
+            }
+            const dataUrl = await fileToDataUrl(file);
+            setLogoUrl(dataUrl);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (name.trim()) {
+            onSave({ name: name.trim(), logoUrl: logoUrl });
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-indigo-700/50">
+                <form onSubmit={handleSubmit}>
+                    <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
+                        <h2 className="text-xl font-bold">Editar Cliente</h2>
+                        <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+                    </header>
+                    <main className="p-6 space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">Logo do Cliente</label>
+                            <div className="flex items-center gap-4">
+                                {logoUrl ? (
+                                    <img src={logoUrl} alt="Logo" className="w-16 h-16 rounded-full object-cover bg-gray-700" />
+                                ) : (
+                                    <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center">
+                                        <Building size={32} className="text-gray-500" />
+                                    </div>
+                                )}
+                                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-1 px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md flex items-center justify-center gap-2">
+                                    <UploadCloud size={16} />
+                                    <span>Alterar Foto</span>
+                                </button>
+                                {logoUrl && (
+                                    <button type="button" onClick={() => setLogoUrl(null)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-full" title="Remover foto">
+                                        <Trash2 size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="client-name" className="block text-sm font-medium text-gray-300 mb-2">Nome do Cliente</label>
+                            <input
+                                id="client-name"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+                    </main>
+                    <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Alterações</button>
+                    </footer>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const DeleteClientModal: React.FC<{ client: Client; onClose: () => void; onConfirm: () => void; }> = ({ client, onClose, onConfirm }) => {
+    const [clientNameInput, setClientNameInput] = useState('');
+    const [deleteInput, setDeleteInput] = useState('');
+
+    const isConfirmed = clientNameInput === client.name && deleteInput.toLowerCase() === 'delete';
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-red-700/50">
+                <header className="flex items-center gap-4 p-4 border-b border-red-800/50">
+                    <div className="w-12 h-12 rounded-full bg-red-900/50 flex items-center justify-center">
+                        <AlertTriangle className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">Confirmar Exclusão</h2>
+                        <p className="text-sm text-gray-400">Esta ação não pode ser desfeita.</p>
+                    </div>
+                </header>
+                <main className="p-6 space-y-4">
+                    <p className="text-sm text-gray-300">
+                        Você está prestes a excluir permanentemente o cliente <strong className="font-bold text-red-400">{client.name}</strong> e todos os seus dados, incluindo avaliações, planos e documentos.
+                    </p>
+                    <div>
+                        <label htmlFor="client-name-confirm" className="block text-sm font-medium text-gray-300 mb-1">
+                            Digite <strong className="text-red-400">{client.name}</strong> para confirmar
+                        </label>
+                        <input
+                            id="client-name-confirm"
+                            type="text"
+                            value={clientNameInput}
+                            onChange={(e) => setClientNameInput(e.target.value)}
+                            className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="delete-confirm" className="block text-sm font-medium text-gray-300 mb-1">
+                            Digite <strong className="text-red-400">delete</strong> para confirmar
+                        </label>
+                        <input
+                            id="delete-confirm"
+                            type="text"
+                            value={deleteInput}
+                            onChange={(e) => setDeleteInput(e.target.value)}
+                            className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        />
+                    </div>
+                </main>
+                <footer className="flex justify-end items-center p-4 border-t border-red-800/50 gap-4">
+                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={!isConfirmed}
+                        className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md disabled:bg-red-900/50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                        Confirmar Exclusão
+                    </button>
+                </footer>
+            </div>
+        </div>
+    );
+};
+
+
 const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSidebarOpen }) => {
-    const { clients, activeClient, setActiveClientId, addClient } = useData();
+    const { clients, activeClient, setActiveClientId, addClient, updateClient, deleteClient, currentUser } = useData();
     const [isDropdownOpen, setDropdownOpen] = useState(false);
     const [newClientName, setNewClientName] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const handleAddClient = () => {
         if (newClientName.trim()) {
             addClient(newClientName.trim());
             setNewClientName('');
+            setDropdownOpen(false);
+        }
+    };
+
+    const handleUpdateClient = (data: Partial<Client>) => {
+        if (editingClient) {
+            updateClient(editingClient.id, data);
+            setEditingClient(null);
+            setDropdownOpen(false);
+        }
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent, client: Client) => {
+        e.stopPropagation();
+        setClientToDelete(client);
+    };
+
+    const handleConfirmDelete = () => {
+        if (clientToDelete) {
+            deleteClient(clientToDelete.id);
+            setClientToDelete(null);
             setDropdownOpen(false);
         }
     };
@@ -378,18 +583,34 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
 
 
     return (
+        <>
         <header className="no-print relative z-10 flex-shrink-0 bg-gray-900/80 backdrop-blur-sm border-b border-indigo-800/30 flex items-center justify-between p-4">
             <div className="flex items-center gap-2">
                 <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-400 hover:text-white">
                     <Menu size={24} />
                 </button>
                 <div className="relative" ref={dropdownRef}>
-                    <button onClick={() => setDropdownOpen(!isDropdownOpen)} className="flex items-center gap-2 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors">
-                        <Building className="h-5 w-5 text-indigo-400" />
-                        <span className="font-semibold">{activeClient?.name || 'Selecione um Cliente'}</span>
-                        <ChevronsUpDown className="h-4 w-4 text-gray-400" />
-                    </button>
-                    {isDropdownOpen && (
+                    {currentUser?.role === 'admin' ? (
+                        <button onClick={() => setDropdownOpen(!isDropdownOpen)} className="flex items-center gap-2 p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors">
+                            {activeClient?.logoUrl ? (
+                                <img src={activeClient.logoUrl} alt={`${activeClient.name} logo`} className="h-6 w-6 rounded-full object-cover bg-gray-700" />
+                            ) : (
+                                <Building className="h-5 w-5 text-indigo-400" />
+                            )}
+                            <span className="font-semibold">{activeClient?.name || 'Selecione um Cliente'}</span>
+                            <ChevronsUpDown className="h-4 w-4 text-gray-400" />
+                        </button>
+                    ) : (
+                         <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-800">
+                            {activeClient?.logoUrl ? (
+                                <img src={activeClient.logoUrl} alt={`${activeClient.name} logo`} className="h-6 w-6 rounded-full object-cover bg-gray-700" />
+                            ) : (
+                                <Building className="h-5 w-5 text-indigo-400" />
+                            )}
+                            <span className="font-semibold">{activeClient?.name}</span>
+                        </div>
+                    )}
+                    {isDropdownOpen && currentUser?.role === 'admin' && (
                         <div className="absolute mt-2 w-72 bg-gray-800 border border-indigo-700/50 rounded-lg shadow-xl z-50">
                             <div className="p-2 border-b border-indigo-700/50">
                                 <input
@@ -406,10 +627,27 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
                             </div>
                             <div className="p-2 max-h-60 overflow-y-auto">
                                 {filteredClients.map(client => (
-                                    <button key={client.id} onClick={() => { setActiveClientId(client.id); setDropdownOpen(false); setSearchQuery(''); }} className="w-full text-left flex items-center justify-between px-3 py-2 text-sm rounded-md hover:bg-indigo-600">
-                                        {highlightMatch(client.name, searchQuery)}
-                                        {client.id === activeClient?.id && <Check className="h-4 w-4" />}
-                                    </button>
+                                    <div key={client.id} className="group flex items-center justify-between w-full text-left rounded-md hover:bg-indigo-600"
+                                        onClick={() => { setActiveClientId(client.id); setDropdownOpen(false); setSearchQuery(''); }}>
+                                        <button className="flex-1 px-3 py-2 text-sm text-left flex items-center justify-between">
+                                            {highlightMatch(client.name, searchQuery)}
+                                            {client.id === activeClient?.id && <Check className="h-4 w-4" />}
+                                        </button>
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setEditingClient(client); }} 
+                                                className="p-1.5 text-gray-400 hover:text-white rounded-full hover:bg-white/10"
+                                                title="Editar Cliente">
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={(e) => handleDeleteClick(e, client)} 
+                                                className="p-1.5 text-gray-400 hover:text-red-400 rounded-full hover:bg-red-500/10"
+                                                title="Excluir Cliente">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
                                 ))}
                                 {filteredClients.length === 0 && searchQuery && (
                                     <p className="text-center text-sm text-gray-500 py-4">Nenhum cliente encontrado.</p>
@@ -432,31 +670,48 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
                     )}
                 </div>
             </div>
-            <div className="flex items-center gap-2">
-                 <button
-                    onClick={handleExportCSV}
-                    className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm text-gray-300 font-medium"
-                    title="Exportar dados como CSV"
-                >
-                    <Sheet className="h-5 w-5" />
-                    <span className="hidden sm:inline">Exportar CSV</span>
-                </button>
-                 <button
-                    onClick={() => window.print()}
-                    className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm text-gray-300 font-medium"
-                    title="Exportar Relatório em PDF"
-                >
-                    <FileDown className="h-5 w-5" />
-                    <span className="hidden sm:inline">Exportar PDF</span>
-                </button>
-            </div>
+            {currentUser?.role === 'admin' && (
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleExportCSV}
+                        className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm text-gray-300 font-medium"
+                        title="Exportar dados como CSV"
+                    >
+                        <Sheet className="h-5 w-5" />
+                        <span className="hidden sm:inline">Exportar CSV</span>
+                    </button>
+                    <button
+                        onClick={() => window.print()}
+                        className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm text-gray-300 font-medium"
+                        title="Exportar Relatório em PDF"
+                    >
+                        <FileDown className="h-5 w-5" />
+                        <span className="hidden sm:inline">Exportar PDF</span>
+                    </button>
+                </div>
+            )}
         </header>
+        {editingClient && (
+            <EditClientModal 
+                client={editingClient}
+                onClose={() => setEditingClient(null)}
+                onSave={handleUpdateClient}
+            />
+        )}
+        {clientToDelete && (
+            <DeleteClientModal
+                client={clientToDelete}
+                onClose={() => setClientToDelete(null)}
+                onConfirm={handleConfirmDelete}
+            />
+        )}
+        </>
     );
 };
 
 // Dashboard Home View
 const DashboardHome: React.FC<{ onPillarClick: (pillar: Pillar) => void; onNewAssessmentClick: () => void; }> = ({ onPillarClick, onNewAssessmentClick }) => {
-    const { activeClient } = useData();
+    const { activeClient, currentUser } = useData();
 
     const latestAssessment = useMemo(() => {
         if (!activeClient || activeClient.assessments.length === 0) return null;
@@ -505,11 +760,11 @@ const DashboardHome: React.FC<{ onPillarClick: (pillar: Pillar) => void; onNewAs
 };
 
 const NewClientOnboarding: React.FC = () => {
-    const { activeClient, addAssessment } = useData();
+    const { activeClient, addAssessment, currentUser } = useData();
     const [isCreating, setIsCreating] = useState(false);
 
     const handleStartFirstAssessment = () => {
-        if (!activeClient) return;
+        if (!activeClient || currentUser?.role !== 'admin') return;
         setIsCreating(true);
         const initialScores = PILLARS.reduce((acc, pillar) => {
             acc[pillar] = { ...INITIAL_PILLAR_SCORE };
@@ -525,14 +780,16 @@ const NewClientOnboarding: React.FC = () => {
             <p className="text-gray-400 mb-6 max-w-md">
                 Este cliente ainda não possui nenhuma avaliação de maturidade. Comece agora para mapear a performance comercial e traçar um plano de ação.
             </p>
-            <button
-                onClick={handleStartFirstAssessment}
-                disabled={isCreating}
-                className="flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50"
-            >
-                <Plus className="h-4 w-4" />
-                Iniciar Primeira Avaliação
-            </button>
+            {currentUser?.role === 'admin' && (
+                <button
+                    onClick={handleStartFirstAssessment}
+                    disabled={isCreating}
+                    className="flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50"
+                >
+                    <Plus className="h-4 w-4" />
+                    Iniciar Primeira Avaliação
+                </button>
+            )}
         </div>
     );
 };
@@ -546,6 +803,7 @@ const PillarMatrix: React.FC<{
     onPillarClick: (pillar: Pillar) => void;
     onNewAssessmentClick: () => void;
 }> = ({ radarChartData, scores, previousScores, onPillarClick, onNewAssessmentClick }) => {
+    const { currentUser } = useData();
     return (
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-4 sm:p-6">
              <div className="flex justify-between items-start mb-4">
@@ -553,13 +811,15 @@ const PillarMatrix: React.FC<{
                     <h2 className="text-xl font-bold text-white">Matriz de Maturidade</h2>
                     <p className="text-sm text-gray-400">Visão geral dos 7 pilares comerciais.</p>
                 </div>
-                <button
-                    onClick={onNewAssessmentClick}
-                    className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Nova Avaliação
-                </button>
+                {currentUser?.role === 'admin' && (
+                    <button
+                        onClick={onNewAssessmentClick}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Nova Avaliação
+                    </button>
+                )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="h-80 md:h-96 print-bg-white">
@@ -596,12 +856,13 @@ const PillarMatrix: React.FC<{
                         const prevScore = previousScores ? calculatePillarScore(previousScores[pillar].responses) : null;
                         const diff = prevScore !== null ? score - prevScore : null;
                         const Icon = ICON_MAP[pillar];
+                        const isClickable = currentUser?.role === 'admin';
 
                         return (
                             <div 
                                 key={pillar}
-                                onClick={() => onPillarClick(pillar)}
-                                className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 hover:border-indigo-500 cursor-pointer transition-all transform hover:scale-105"
+                                onClick={() => isClickable && onPillarClick(pillar)}
+                                className={`bg-gray-900/50 p-4 rounded-lg border border-gray-700 ${isClickable ? 'hover:border-indigo-500 cursor-pointer transition-all transform hover:scale-105' : ''}`}
                             >
                                 <div className="flex items-center gap-3 mb-2">
                                     <Icon className="w-5 h-5" style={{ color: PILLAR_DATA[pillar].color }} />
@@ -755,7 +1016,7 @@ const EvolutionView: React.FC = () => {
 
 // Timeline View
 const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void; onNewAssessmentClick: () => void; }> = ({ onStartEditing, onNewAssessmentClick }) => {
-    const { activeClient } = useData();
+    const { activeClient, currentUser } = useData();
 
     if (!activeClient || activeClient.assessments.length === 0) {
         return (
@@ -763,13 +1024,15 @@ const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void;
                 <Clock className="mx-auto w-12 h-12 text-indigo-400 mb-4" />
                 <h2 className="text-xl font-bold mb-2">Nenhuma Avaliação Encontrada</h2>
                 <p className="text-gray-400 mb-6">Crie a primeira avaliação para iniciar a timeline.</p>
-                 <button
-                    onClick={onNewAssessmentClick}
-                    className="flex items-center mx-auto justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Criar Primeira Avaliação
-                </button>
+                {currentUser?.role === 'admin' && (
+                     <button
+                        onClick={onNewAssessmentClick}
+                        className="flex items-center mx-auto justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Criar Primeira Avaliação
+                    </button>
+                )}
             </div>
         );
     }
@@ -783,13 +1046,15 @@ const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void;
                     <h2 className="text-2xl font-bold text-white">Timeline de Avaliações</h2>
                     <p className="text-gray-400">Histórico de todas as avaliações de maturidade realizadas.</p>
                 </div>
-                <button
-                    onClick={onNewAssessmentClick}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Nova Avaliação
-                </button>
+                {currentUser?.role === 'admin' && (
+                    <button
+                        onClick={onNewAssessmentClick}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Nova Avaliação
+                    </button>
+                )}
             </div>
             <div className="space-y-8">
                 {sortedAssessments.map((assessment, index) => (
@@ -807,6 +1072,7 @@ const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void;
 
 const AssessmentCard: React.FC<{ assessment: Assessment; isLatest: boolean; onEdit: () => void; }> = ({ assessment, isLatest, onEdit }) => {
     const [isExpanded, setIsExpanded] = useState(isLatest); // Expand latest by default
+    const { currentUser } = useData();
     return (
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 overflow-hidden">
             <div className="p-4 flex justify-between items-center cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
@@ -821,9 +1087,11 @@ const AssessmentCard: React.FC<{ assessment: Assessment; isLatest: boolean; onEd
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
-                        <Edit className="w-5 h-5 text-gray-400" />
-                    </button>
+                    {currentUser?.role === 'admin' && (
+                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
+                            <Edit className="w-5 h-5 text-gray-400" />
+                        </button>
+                    )}
                     <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
             </div>
@@ -859,8 +1127,8 @@ const AssessmentCard: React.FC<{ assessment: Assessment; isLatest: boolean; onEd
 
 // Meeting Prep View
 const MeetingPrepView: React.FC = () => {
-    const { activeClient } = useData();
-    const [summary, setSummary] = useState('');
+    const { activeClient, updateClientDiagnosticSummary } = useData();
+    const [summary, setSummary] = useState(activeClient?.diagnosticSummary || '');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleGenerateSummary = useCallback(async () => {
@@ -869,27 +1137,21 @@ const MeetingPrepView: React.FC = () => {
         try {
             const result = await generateExecutiveSummary(activeClient);
             setSummary(result);
+            updateClientDiagnosticSummary(activeClient.id, result);
         } catch (error) {
-            setSummary('Ocorreu um erro ao gerar o resumo. Tente novamente.');
+            const errorMessage = 'Ocorreu um erro ao gerar o resumo. Tente novamente.';
+            setSummary(errorMessage);
+            updateClientDiagnosticSummary(activeClient.id, errorMessage);
         } finally {
             setIsLoading(false);
         }
-    }, [activeClient]);
-
-    useEffect(() => {
-        // Automatically generate on view load if there's an active client with assessments
-        if (activeClient && activeClient.assessments.length > 0) {
-            handleGenerateSummary();
-        } else {
-            setSummary('');
-        }
-    }, [activeClient, handleGenerateSummary]);
+    }, [activeClient, updateClientDiagnosticSummary]);
 
     if (!activeClient || activeClient.assessments.length === 0) {
         return (
              <div className="text-center p-8 bg-gray-800/30 rounded-lg">
                 <BotMessageSquare className="mx-auto w-12 h-12 text-indigo-400 mb-4" />
-                <h2 className="text-xl font-bold mb-2">Prepare-se para a Reunião</h2>
+                <h2 className="text-xl font-bold mb-2">Gere seu Diagnóstico com IA</h2>
                 <p className="text-gray-400">Realize uma avaliação para que a IA possa gerar um resumo executivo e pontos de discussão.</p>
             </div>
         );
@@ -899,7 +1161,7 @@ const MeetingPrepView: React.FC = () => {
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Preparação para Reunião com IA</h2>
+                    <h2 className="text-2xl font-bold text-white">Diagnóstico com IA</h2>
                     <p className="text-gray-400">Resumo executivo gerado pela IA para a próxima conversa com o cliente.</p>
                 </div>
                 <button onClick={handleGenerateSummary} disabled={isLoading} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors disabled:opacity-50">
@@ -908,7 +1170,7 @@ const MeetingPrepView: React.FC = () => {
                     ) : (
                         <BotMessageSquare className="h-4 w-4" />
                     )}
-                    {isLoading ? 'Gerando...' : 'Gerar Novamente'}
+                    {isLoading ? 'Gerando...' : (summary ? 'Gerar Novo Diagnóstico' : 'Gerar Diagnóstico')}
                 </button>
             </div>
             <div className="bg-gray-900/50 p-4 rounded-lg min-h-[200px]">
@@ -917,9 +1179,224 @@ const MeetingPrepView: React.FC = () => {
                         <p>Analisando dados e gerando insights...</p>
                     </div>
                 ) : (
-                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{summary}</p>
+                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{summary || 'Clique em "Gerar Diagnóstico" para ver um resumo da situação atual do cliente.'}</p>
                 )}
             </div>
+        </div>
+    );
+};
+
+// Helper types and functions for the new DeliverableViewerModal
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // remove non-word chars
+    .replace(/\s+/g, '-') // replace spaces with -
+    .replace(/--+/g, '-') // replace multiple - with single -
+    .trim();
+
+
+const MarkdownContentRenderer: React.FC<{ content: string }> = React.memo(({ content }) => {
+    // Process simple inline markdown like **bold** and *italic*
+    const processInlineFormatting = (text: string): React.ReactNode => {
+        const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|_.*?_)/g);
+        return parts.filter(part => part).map((part, i) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={i}>{part.slice(2, -2)}</strong>;
+            }
+            if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
+                return <em key={i}>{part.slice(1, -1)}</em>;
+            }
+            return part;
+        });
+    };
+
+    const renderedContent = useMemo(() => {
+        // Split by blank lines to handle paragraphs and lists correctly
+        const blocks = content.split(/\n\s*\n/);
+        const elements: React.ReactNode[] = [];
+
+        blocks.forEach((block, blockIndex) => {
+            const trimmedBlock = block.trim();
+            if (!trimmedBlock) return;
+
+            // Horizontal Rule
+            if (trimmedBlock === '---') {
+                elements.push(<hr key={`hr-${blockIndex}`} className="my-6 border-gray-600" />);
+                return;
+            }
+
+            // Headings
+            const headingMatch = trimmedBlock.match(/^(#{1,6})\s+(.*)/);
+            if (headingMatch) {
+                const level = headingMatch[1].length;
+                const text = headingMatch[2].trim();
+                const id = slugify(`${text}-${blockIndex}`);
+                const Tag = `h${level}` as React.ElementType;
+                const textSize = ['text-3xl', 'text-2xl', 'text-xl', 'text-lg', 'text-base', 'text-sm'][level - 1];
+                elements.push(
+                    <Tag key={id} id={id} className={`font-bold mt-8 mb-3 text-white ${textSize} heading-marker`}>
+                        {text}
+                    </Tag>
+                );
+                return;
+            }
+
+            // Lists
+            if (trimmedBlock.startsWith('- ')) {
+                const listItems = trimmedBlock.split('\n').map((line, lineIndex) => (
+                    <li key={`li-${blockIndex}-${lineIndex}`} className="mb-2">
+                        {processInlineFormatting(line.replace(/^- /, '').trim())}
+                    </li>
+                ));
+                elements.push(<ul key={`ul-${blockIndex}`} className="list-disc pl-5 mb-4">{listItems}</ul>);
+                return;
+            }
+
+            // Paragraphs
+            elements.push(
+                <p key={`p-${blockIndex}`} className="mb-4 leading-relaxed">
+                    {processInlineFormatting(trimmedBlock.replace(/\n/g, ' '))}
+                </p>
+            );
+        });
+
+        return elements;
+    }, [content]);
+
+    return <div className="prose prose-invert max-w-none prose-p:text-gray-300 prose-headings:text-indigo-300">{renderedContent}</div>;
+});
+
+const DeliverableViewerModal: React.FC<{ deliverable: Deliverable; onClose: () => void; }> = ({ deliverable, onClose }) => {
+    const [toc, setToc] = useState<TocItem[]>([]);
+    const [activeTocId, setActiveTocId] = useState<string | null>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const observer = useRef<IntersectionObserver | null>(null);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
+    // Parse content for Table of Contents
+    useEffect(() => {
+        const lines = deliverable.content.split('\n');
+        const headings: TocItem[] = [];
+        lines.forEach((line, index) => {
+            const match = line.match(/^(#{1,6})\s+(.*)/);
+            if (match) {
+                const level = match[1].length;
+                const text = match[2].trim();
+                // Use block index logic consistent with renderer for stable IDs
+                const blockContent = deliverable.content.split(/\n\s*\n/);
+                const blockIndex = blockContent.findIndex(b => b.includes(line));
+                headings.push({ id: slugify(`${text}-${blockIndex}`), text, level });
+            }
+        });
+        setToc(headings);
+    }, [deliverable.content]);
+
+    // Setup IntersectionObserver for active ToC highlighting
+    useEffect(() => {
+        if (observer.current) observer.current.disconnect();
+
+        const callback = (entries: IntersectionObserverEntry[]) => {
+            const visibleEntries = entries.filter(e => e.isIntersecting);
+            if (visibleEntries.length > 0) {
+                // Find the entry that is closest to the top of the viewport
+                visibleEntries.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+                setActiveTocId(visibleEntries[0].target.id);
+            }
+        };
+
+        observer.current = new IntersectionObserver(callback, {
+            root: contentRef.current,
+            rootMargin: "0px 0px -80% 0px",
+            threshold: 0.1
+        });
+
+        const elements = contentRef.current?.querySelectorAll('.heading-marker');
+        if (elements) {
+            elements.forEach(el => observer.current?.observe(el));
+        }
+
+        return () => observer.current?.disconnect();
+    }, [toc]);
+
+
+    const handleTocClick = (id: string) => {
+        const element = document.getElementById(id);
+        element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    return (
+        <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+            aria-modal="true"
+            role="dialog"
+        >
+            <div 
+                className="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-indigo-700/50"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <header className="flex justify-between items-center p-4 border-b border-indigo-800/50 flex-shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="w-6 h-6 text-indigo-400 flex-shrink-0"/>
+                        <div className="min-w-0">
+                           <h2 className="text-xl font-bold text-white truncate" title={deliverable.name}>{deliverable.name}</h2>
+                           <p className="text-sm text-gray-400 truncate" title={deliverable.description}>{deliverable.description}</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors flex-shrink-0 ml-4"><X size={20} /></button>
+                </header>
+                <div className="flex-1 flex overflow-hidden">
+                    {toc.length > 0 && (
+                        <aside className="w-1/4 max-w-xs flex-shrink-0 p-4 border-r border-indigo-800/50 overflow-y-auto custom-scrollbar">
+                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Tópicos</h3>
+                            <ul className="space-y-1">
+                                {toc.map(item => (
+                                    <li key={item.id}>
+                                        <button 
+                                            onClick={() => handleTocClick(item.id)}
+                                            className={`w-full text-left text-sm py-1.5 rounded-md transition-colors ${activeTocId === item.id ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`}
+                                            style={{ paddingLeft: `${(item.level - 1) * 1 + 0.75}rem` }}
+                                        >
+                                            {item.text}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </aside>
+                    )}
+                    <main ref={contentRef} className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                         <MarkdownContentRenderer content={deliverable.content} />
+                    </main>
+                </div>
+            </div>
+            <style>{`
+                .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+                .line-clamp-3 {
+                   overflow: hidden;
+                   display: -webkit-box;
+                   -webkit-box-orient: vertical;
+                   -webkit-line-clamp: 3;
+                }
+            `}</style>
         </div>
     );
 };
@@ -927,59 +1404,14 @@ const MeetingPrepView: React.FC = () => {
 
 // Resource Library View
 const ResourceLibraryView: React.FC = () => {
-    const { activeClient, addDeliverable, deleteDeliverable } = useData();
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [fileContent, setFileContent] = useState('');
-    const [fileName, setFileName] = useState('');
-    const [error, setError] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { activeClient, addDeliverable, deleteDeliverable, currentUser } = useData();
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [viewingDeliverable, setViewingDeliverable] = useState<Deliverable | null>(null);
 
-    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                setError('O arquivo é muito grande. O limite é de 5MB.');
-                return;
-            }
-            setError('');
-            setFileName(file.name);
-            try {
-                const text = await file.text();
-                setFileContent(text);
-            } catch (e) {
-                console.error("Error reading file:", e);
-                setError('Não foi possível ler o arquivo. Certifique-se de que é um arquivo de texto válido.');
-                setFileContent('');
-                setFileName('');
-            }
-        }
-    };
-
-    const handleFormSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name.trim() || !description.trim() || !fileContent) {
-            setError('Todos os campos, incluindo o arquivo, são obrigatórios.');
-            return;
-        }
-        setIsSubmitting(true);
-        setError('');
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+    const handleSaveDeliverable = (name: string, description: string, content: string) => {
         if(activeClient) {
-            addDeliverable(activeClient.id, name, description, fileContent);
-            // Reset form
-            setName('');
-            setDescription('');
-            setFileContent('');
-            setFileName('');
-            if(fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
+            addDeliverable(activeClient.id, name, description, content);
         }
-        setIsSubmitting(false);
     };
     
     const handleDelete = (id: string) => {
@@ -991,123 +1423,91 @@ const ResourceLibraryView: React.FC = () => {
     if (!activeClient) return null;
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1">
-                 <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6 sticky top-6">
-                    <h2 className="text-2xl font-bold text-white mb-1">Adicionar Entregável</h2>
-                    <p className="text-gray-400 mb-6">Faça upload de documentos, playbooks e outros materiais de texto.</p>
-                    <form onSubmit={handleFormSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="deliverable-name" className="block text-sm font-medium text-gray-300 mb-1">Nome do Entregável</label>
-                            <input
-                                id="deliverable-name"
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Ex: Playbook de Vendas V2"
-                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="deliverable-desc" className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
-                            <textarea
-                                id="deliverable-desc"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                rows={3}
-                                placeholder="Um resumo do que é este documento."
-                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                        </div>
-                        <div>
-                           <label className="block text-sm font-medium text-gray-300 mb-1">Arquivo de Texto</label>
-                           <div 
-                                className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md cursor-pointer hover:border-indigo-500 transition-colors"
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                <div className="space-y-1 text-center">
-                                    <UploadCloud className="mx-auto h-12 w-12 text-gray-500" />
-                                    {fileName ? (
-                                        <p className="text-sm text-green-400 font-semibold">{fileName}</p>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm text-gray-400">
-                                                <span className="font-semibold text-indigo-400">Clique para fazer upload</span> ou arraste e solte
-                                            </p>
-                                            <p className="text-xs text-gray-500">Apenas arquivos de texto (TXT, MD, etc.)</p>
-                                        </>
-                                    )}
-                                </div>
-                                <input id="file-upload" name="file-upload" type="file" className="sr-only" ref={fileInputRef} onChange={handleFileChange} accept="text/*,.md"/>
-                            </div>
-                        </div>
-
-                        {error && <p className="text-sm text-red-400 text-center">{error}</p>}
-
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || !name || !description || !fileContent}
-                            className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isSubmitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                            {isSubmitting ? 'Salvando...' : 'Salvar Entregável'}
-                        </button>
-                    </form>
-                </div>
-            </div>
-            <div className="lg:col-span-2">
-                 <div className="space-y-4">
-                    <h2 className="text-2xl font-bold text-white">Biblioteca de {activeClient.name}</h2>
-                    {activeClient.deliverables.length === 0 ? (
-                        <div className="text-center p-8 bg-gray-800/30 rounded-lg">
-                            <Library className="mx-auto w-12 h-12 text-gray-500 mb-4" />
-                            <h3 className="text-xl font-bold mb-2">Biblioteca Vazia</h3>
-                            <p className="text-gray-400">Use o formulário ao lado para adicionar o primeiro entregável.</p>
-                        </div>
-                    ) : (
-                        activeClient.deliverables.map(deliverable => (
-                            <DeliverableCard key={deliverable.id} deliverable={deliverable} onDelete={() => handleDelete(deliverable.id)} />
-                        ))
-                    )}
-                 </div>
-            </div>
-        </div>
-    );
-};
-
-const DeliverableCard: React.FC<{ deliverable: Deliverable; onDelete: () => void; }> = ({ deliverable, onDelete }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    
-    return (
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 overflow-hidden">
-            <div className="p-4 flex justify-between items-start gap-4">
-                <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                         <FileText className="w-5 h-5 text-indigo-400 flex-shrink-0"/>
-                         <h3 className="text-lg font-bold text-white">{deliverable.name}</h3>
+        <>
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-bold text-white">Biblioteca de {activeClient.name}</h2>
+                        <p className="text-gray-400">Materiais, playbooks e documentos de apoio.</p>
                     </div>
-                    <p className="text-sm text-gray-400 ml-8">{deliverable.description}</p>
+                    {currentUser?.role === 'admin' && (
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Adicionar Entregável
+                        </button>
+                    )}
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={onDelete} className="p-2 rounded-full hover:bg-red-900/50 transition-colors" title="Excluir">
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                    </button>
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="p-2 rounded-full hover:bg-gray-700 transition-colors" title={isExpanded ? 'Recolher' : 'Expandir'}>
-                        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
+
+                {activeClient.deliverables.length === 0 ? (
+                    <div className="text-center p-12 bg-gray-800/30 rounded-lg">
+                        <Library className="mx-auto w-12 h-12 text-gray-500 mb-4" />
+                        <h3 className="text-xl font-bold mb-2">Biblioteca Vazia</h3>
+                        <p className="text-gray-400">Nenhum documento foi adicionado ainda.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {activeClient.deliverables.map(deliverable => (
+                            <DeliverableCard 
+                                key={deliverable.id} 
+                                deliverable={deliverable} 
+                                onDelete={() => handleDelete(deliverable.id)} 
+                                onView={() => setViewingDeliverable(deliverable)}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+            {isAddModalOpen && (
+                <AddDeliverableModal 
+                    onClose={() => setIsAddModalOpen(false)}
+                    onSave={handleSaveDeliverable}
+                />
+            )}
+            {viewingDeliverable && (
+                <DeliverableViewerModal
+                    deliverable={viewingDeliverable}
+                    onClose={() => setViewingDeliverable(null)}
+                />
+            )}
+        </>
+    );
+};
+
+const DeliverableCard: React.FC<{ deliverable: Deliverable; onDelete: () => void; onView: () => void; }> = ({ deliverable, onDelete, onView }) => {
+    const { currentUser } = useData();
+    return (
+        <div 
+            className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 flex flex-col group transition-all duration-300 hover:border-indigo-500 hover:-translate-y-1 cursor-pointer"
+            onClick={onView}
+        >
+            <div className="p-4 flex flex-col flex-1">
+                 <div className="flex justify-between items-start gap-4 mb-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                         <div className="p-2 bg-indigo-900/50 rounded-lg">
+                            <FileText className="w-5 h-5 text-indigo-400 flex-shrink-0"/>
+                         </div>
+                         <h3 className="text-lg font-bold text-white truncate" title={deliverable.name}>{deliverable.name}</h3>
+                    </div>
+                    {currentUser?.role === 'admin' && (
+                         <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-2 rounded-full hover:bg-red-900/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="Excluir">
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                        </button>
+                    )}
+                </div>
+                <p className="text-sm text-gray-400 mb-4 flex-1 line-clamp-3">{deliverable.description}</p>
+                <div className="mt-auto pt-4 border-t border-indigo-800/30 text-center">
+                    <span className="text-sm font-semibold text-indigo-300 group-hover:text-white transition-colors">
+                        Ler Documento
+                    </span>
                 </div>
             </div>
-            {isExpanded && (
-                <div className="p-4 border-t border-indigo-800/30 bg-black/20">
-                    <h4 className="font-semibold text-gray-300 mb-2">Conteúdo do Documento:</h4>
-                    <pre className="text-sm text-gray-300 whitespace-pre-wrap break-words bg-gray-900 p-4 rounded-md max-h-96 overflow-y-auto">
-                        {deliverable.content}
-                    </pre>
-                </div>
-            )}
         </div>
     );
 };
+
 
 // Client Info View
 const ClientInfoView: React.FC = () => {
@@ -1235,50 +1635,50 @@ const ClientInfoSection: React.FC<{ sectionId: ClientInfoSectionId }> = ({ secti
             {isExpanded && (
                 <main className="p-4 border-t border-indigo-800/30 space-y-4">
                     {section.questions.map(q => (
-                        <div key={q.id} className={`p-3 rounded-lg ${q.answer.trim() === '' && (q.attachments || []).length === 0 ? 'bg-gray-900/50 border border-dashed border-gray-600' : 'bg-gray-900/50'}`}>
+                        <div key={q.id} className={`p-3 rounded-lg ${q.answer.trim() === '' && (q.attachments || []).length === 0 ? 'bg-gray-900/50 border border-gray-700' : 'bg-gray-900/30'}`}>
                             <label className="block text-sm font-semibold text-gray-300 mb-2">{q.question}</label>
                             <textarea
-                                defaultValue={q.answer}
-                                onBlur={(e) => updateClientInfoAnswer(activeClient.id, sectionId, q.id, e.target.value)}
-                                rows={q.answer.split('\n').length < 2 ? 2 : q.answer.split('\n').length}
+                                value={q.answer}
+                                onChange={(e) => updateClientInfoAnswer(activeClient.id, sectionId, q.id, e.target.value)}
                                 placeholder="Sua resposta aqui..."
-                                className="w-full text-sm px-3 py-2 text-white bg-gray-800/60 border border-gray-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-y"
-                             />
-                             <div className="mt-2 flex justify-between items-end">
+                                rows={2}
+                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                            />
+                             <div className="mt-2 flex justify-between items-center">
                                 <div className="flex flex-wrap gap-2">
                                     {(q.attachments || []).map(att => (
-                                        <AttachmentChip 
-                                            key={att.id}
-                                            attachment={att}
-                                            onDelete={() => deleteClientInfoAttachment(activeClient.id, sectionId, q.id, att.id)}
-                                        />
+                                        <div key={att.id} className="flex items-center gap-2 bg-indigo-900/50 px-2 py-1 rounded-md text-xs">
+                                            <FileIcon size={14} className="text-indigo-400"/>
+                                            <span className="text-indigo-300">{att.name}</span>
+                                            <button 
+                                                onClick={() => deleteClientInfoAttachment(activeClient.id, sectionId, q.id, att.id)}
+                                                className="p-0.5 rounded-full hover:bg-red-500/50">
+                                                <X size={12} className="text-red-400"/>
+                                            </button>
+                                        </div>
                                     ))}
                                 </div>
-                                <div>
-                                    <button 
-                                        onClick={() => fileInputRefs.current[q.id]?.click()}
-                                        className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-                                        title="Anexar arquivo"
-                                    >
-                                        <Paperclip size={16} />
-                                    </button>
-                                    <input 
-                                        type="file" 
-                                        ref={el => { fileInputRefs.current[q.id] = el; }}
-                                        onChange={(e) => handleAttachmentUpload(e, q.id)}
-                                        className="hidden"
-                                    />
-                                </div>
-                             </div>
+                                <input
+                                    type="file"
+                                    ref={el => fileInputRefs.current[q.id] = el}
+                                    onChange={(e) => handleAttachmentUpload(e, q.id)}
+                                    className="hidden"
+                                />
+                                <button
+                                    onClick={() => fileInputRefs.current[q.id]?.click()}
+                                    className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                                    title="Anexar arquivo"
+                                >
+                                    <Paperclip size={16}/>
+                                </button>
+                            </div>
                         </div>
                     ))}
-                    {section.questions.length === 0 && (
-                        <p className="text-center text-gray-500 py-4">Nenhuma pergunta nesta seção. Adicione uma para começar.</p>
-                    )}
                 </main>
             )}
             {isManageModalOpen && (
-                <ManageQuestionsModal 
+                <ManageQuestionsModal
+                    sectionTitle={section.title}
                     questions={section.questions}
                     onClose={() => setManageModalOpen(false)}
                     onSave={handleSaveManagedQuestions}
@@ -1289,17 +1689,18 @@ const ClientInfoSection: React.FC<{ sectionId: ClientInfoSectionId }> = ({ secti
 };
 
 const ManageQuestionsModal: React.FC<{
+    sectionTitle: string;
     questions: ClientInfoQuestion[];
     onClose: () => void;
     onSave: (newQuestionText: string, idsToDelete: string[]) => void;
-}> = ({ questions, onClose, onSave }) => {
+}> = ({ sectionTitle, questions, onClose, onSave }) => {
     const [newQuestion, setNewQuestion] = useState('');
-    const [idsToDelete, setIdsToDelete] = useState<Set<string>>(new Set());
+    const [toDelete, setToDelete] = useState<Set<string>>(new Set());
 
     const handleToggleDelete = (id: string) => {
-        setIdsToDelete(prev => {
+        setToDelete(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(id)) {
+            if(newSet.has(id)) {
                 newSet.delete(id);
             } else {
                 newSet.add(id);
@@ -1308,118 +1709,421 @@ const ManageQuestionsModal: React.FC<{
         });
     };
 
-    const handleSaveChanges = () => {
-        onSave(newQuestion.trim(), Array.from(idsToDelete));
+    const handleSubmit = () => {
+        onSave(newQuestion.trim(), Array.from(toDelete));
         onClose();
     };
 
     return (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-indigo-700/50 flex flex-col max-h-[90vh]">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-indigo-700/50 flex flex-col max-h-[80vh]">
                 <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                    <h2 className="text-xl font-bold">Gerenciar Perguntas</h2>
+                    <h2 className="text-xl font-bold">Gerenciar Perguntas: <span className="text-indigo-400">{sectionTitle}</span></h2>
                     <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
                 </header>
-                <main className="p-6 space-y-6 overflow-y-auto">
-                    <div>
-                        <h3 className="font-semibold text-lg mb-2 text-indigo-300">Adicionar Nova Pergunta</h3>
-                        <input
-                            type="text"
-                            value={newQuestion}
-                            onChange={(e) => setNewQuestion(e.target.value)}
-                            placeholder="Digite sua pergunta customizada aqui"
-                            className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-lg mb-2 text-red-300">Remover Perguntas</h3>
-                        <p className="text-sm text-gray-400 mb-3">Selecione as perguntas customizadas que deseja remover. Perguntas padrão não podem ser removidas.</p>
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                            {questions.map(q => (
-                                <div key={q.id} className={`flex items-center p-3 rounded-md ${q.isDefault ? 'bg-gray-700/50 opacity-60' : 'bg-gray-700'}`}>
-                                    <input
-                                        type="checkbox"
-                                        id={`del-${q.id}`}
-                                        disabled={q.isDefault}
-                                        checked={idsToDelete.has(q.id)}
-                                        onChange={() => handleToggleDelete(q.id)}
-                                        className="h-4 w-4 rounded border-gray-500 bg-gray-800 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
-                                    />
-                                    <label htmlFor={`del-${q.id}`} className={`ml-3 block text-sm flex-1 ${q.isDefault ? 'text-gray-500' : 'text-gray-300'}`}>
-                                        {q.question}
-                                    </label>
-                                </div>
-                            ))}
-                        </div>
+                <main className="p-6 flex-1 overflow-y-auto space-y-4">
+                    <h3 className="font-semibold text-gray-300">Adicionar Nova Pergunta</h3>
+                    <input
+                        type="text"
+                        value={newQuestion}
+                        onChange={(e) => setNewQuestion(e.target.value)}
+                        placeholder="Digite sua nova pergunta aqui"
+                        className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+
+                    <h3 className="font-semibold text-gray-300 pt-4">Excluir Perguntas Existentes</h3>
+                    <div className="space-y-2">
+                        {questions.filter(q => !q.isDefault).map(q => (
+                            <div key={q.id} className="flex items-center gap-3 p-2 bg-gray-900/50 rounded-md">
+                                <button onClick={() => handleToggleDelete(q.id)}>
+                                    {toDelete.has(q.id) 
+                                        ? <CheckSquare size={20} className="text-red-400" /> 
+                                        : <Square size={20} className="text-gray-500" />
+                                    }
+                                </button>
+                                <span className={`${toDelete.has(q.id) ? 'line-through text-red-400/70' : 'text-gray-300'}`}>{q.question}</span>
+                            </div>
+                        ))}
+                         {questions.filter(q => !q.isDefault).length === 0 && (
+                            <p className="text-sm text-gray-500 italic">Nenhuma pergunta personalizada para excluir.</p>
+                         )}
                     </div>
                 </main>
                 <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
                     <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
-                    <button type="button" onClick={handleSaveChanges} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Alterações</button>
+                    <button type="button" onClick={handleSubmit} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Alterações</button>
                 </footer>
             </div>
         </div>
     );
 };
 
-const AttachmentChip: React.FC<{ attachment: Attachment; onDelete: () => void; }> = ({ attachment, onDelete }) => {
-    return (
-        <div className="bg-indigo-900/70 text-indigo-200 text-xs font-medium rounded-full flex items-center">
-            <a 
-                href={`data:${attachment.type};base64,${attachment.data}`} 
-                download={attachment.name}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 pl-3 pr-2 py-1 hover:bg-indigo-800/50 rounded-l-full"
-                title={`Download ${attachment.name}`}
-            >
-                <FileIcon size={12} />
-                <span>{attachment.name.length > 20 ? `${attachment.name.substring(0, 18)}...` : attachment.name}</span>
-            </a>
-            <button 
-                onClick={onDelete} 
-                className="p-1.5 hover:bg-red-900/50 rounded-r-full"
-                title="Remover anexo"
-            >
-                <X size={12} />
-            </button>
-        </div>
-    )
-}
 
-// Weekly Planning View
-const WeeklyPlanningView: React.FC = () => {
-    const { activeClient, addWeeklyPlan } = useData();
-    if (!activeClient) return null;
-
-    const sortedPlans = [...(activeClient.weeklyPlans || [])].sort((a, b) => b.weekNumber - a.weekNumber);
+// Planning View (NEW - REPLACES WeeklyPlanningView)
+const PlanningView: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<'kanban' | 'goals'>('kanban');
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Planejamento Semanal</h2>
-                    <p className="text-gray-400">Organize as ações e objetivos de cada semana.</p>
+                    <h2 className="text-2xl font-bold text-white">Planejamento</h2>
+                    <p className="text-gray-400">Defina metas de longo prazo e execute as tarefas semanais.</p>
                 </div>
-                <button
-                    onClick={() => addWeeklyPlan(activeClient.id)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Adicionar Semana
-                </button>
             </div>
             
+            <div className="border-b border-indigo-800/50">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button
+                        onClick={() => setActiveTab('kanban')}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'kanban'
+                                ? 'border-indigo-500 text-indigo-400'
+                                : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
+                        }`}
+                    >
+                        Kanban Semanal
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('goals')}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                            activeTab === 'goals'
+                                ? 'border-indigo-500 text-indigo-400'
+                                : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
+                        }`}
+                    >
+                        Metas (Jornadas)
+                    </button>
+                </nav>
+            </div>
+
+            <div>
+                {activeTab === 'kanban' && <KanbanBoardView />}
+                {activeTab === 'goals' && <GoalsView />}
+            </div>
+        </div>
+    );
+};
+
+const EditableField: React.FC<{ value: string, onSave: (newValue: string) => void, children: React.ReactNode, isAdmin: boolean, textClass?: string, inputClass?: string }> = ({ value, onSave, children, isAdmin, textClass, inputClass }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [text, setText] = useState(value);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleSave = () => {
+        if(text.trim()) {
+            onSave(text.trim());
+        }
+        setIsEditing(false);
+    };
+    
+    useEffect(() => {
+        if(isEditing) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        }
+    }, [isEditing]);
+    
+    if(!isAdmin) return <div className={textClass}>{children}</div>;
+
+    return isEditing ? (
+        <input
+            ref={inputRef}
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            className={`bg-gray-900/50 p-1 rounded-md border border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none ${inputClass}`}
+        />
+    ) : (
+        <div onClick={() => setIsEditing(true)} className={`cursor-pointer ${textClass}`}>
+            {children}
+        </div>
+    );
+}
+
+const ActionItem: React.FC<{ action: Action; journey: Journey; initiative: Initiative }> = ({ action, journey, initiative }) => {
+    const { activeClient, currentUser, toggleActionComplete, updateAction, deleteAction, addKanbanCard } = useData();
+    if (!activeClient) return null;
+    const isAdmin = currentUser?.role === 'admin';
+
+    const handleUpdateName = (name: string) => updateAction(activeClient.id, journey.id, journey.objectives[0].id, journey.objectives[0].keyResults[0].id, initiative.id, action.id, name);
+    const handleDelete = () => window.confirm("Excluir esta ação?") && deleteAction(activeClient.id, journey.id, journey.objectives[0].id, journey.objectives[0].keyResults[0].id, initiative.id, action.id);
+    const handleToggle = () => toggleActionComplete(activeClient.id, journey.id, journey.objectives[0].id, journey.objectives[0].keyResults[0].id, initiative.id, action.id);
+    
+    const handleAddToKanban = () => {
+        const latestPlan = activeClient.weeklyPlans.length > 0 ? activeClient.weeklyPlans.reduce((a, b) => a.weekNumber > b.weekNumber ? a : b) : null;
+        if (latestPlan) {
+            const cardData = {
+                title: action.name,
+                description: `Ação vinculada à iniciativa "${initiative.name}" da jornada "${journey.name}".`,
+                assignee: '',
+                dueDate: new Date().toISOString(),
+                goal: '',
+                actionId: action.id,
+                journeyId: journey.id,
+            };
+            addKanbanCard(activeClient.id, latestPlan.id, cardData, 'todo');
+        } else {
+            alert("Crie uma semana no Kanban primeiro para adicionar esta ação.");
+        }
+    };
+
+    return (
+        <div className="flex items-center gap-2 group p-1.5 rounded-md hover:bg-gray-700/50">
+            {isAdmin ? <button onClick={handleToggle}>{action.isCompleted ? <CheckSquare size={16} className="text-green-400"/> : <Square size={16} className="text-gray-500"/>}</button> : (action.isCompleted ? <CheckSquare size={16} className="text-green-400"/> : <Square size={16} className="text-gray-500"/>)}
+            <div className="flex-1">
+                <EditableField value={action.name} onSave={handleUpdateName} isAdmin={isAdmin} textClass={`text-sm ${action.isCompleted ? 'line-through text-gray-500' : ''}`} inputClass="text-sm w-full">
+                    {action.name}
+                </EditableField>
+            </div>
+            {isAdmin && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    <button disabled={action.isInKanban} onClick={handleAddToKanban} className="p-1 text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed" title={action.isInKanban ? "Já está no Kanban" : "Adicionar ao Kanban"}><ClipboardCheck size={14}/></button>
+                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400"><Trash2 size={14}/></button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const InitiativeItem: React.FC<{ initiative: Initiative; journey: Journey; objective: Objective; keyResult: KeyResult }> = ({ initiative, journey, objective, keyResult }) => {
+    const { activeClient, currentUser, updateInitiative, deleteInitiative, addAction } = useData();
+    const [isExpanded, setIsExpanded] = useState(true);
+    if (!activeClient) return null;
+    const isAdmin = currentUser?.role === 'admin';
+    
+    const handleUpdateName = (name: string) => updateInitiative(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, name);
+    const handleDelete = () => window.confirm("Excluir esta iniciativa e todas as suas ações?") && deleteInitiative(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id);
+    const handleAddAction = () => { const name = prompt("Nova ação:"); if(name) addAction(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, name); }
+
+    return (
+        <div className="ml-5 pl-4 border-l-2 border-gray-700">
+            <div className="flex items-center gap-2 group">
+                <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
+                <ListChecks size={16} className="text-cyan-400"/>
+                <div className="flex-1 font-semibold">
+                    <EditableField value={initiative.name} onSave={handleUpdateName} isAdmin={isAdmin} textClass="text-cyan-400" inputClass="w-full text-cyan-400 font-semibold">
+                        {initiative.name}
+                    </EditableField>
+                </div>
+                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={handleAddAction} className="p-1 text-gray-400 hover:text-white" title="Adicionar Ação"><Plus size={14}/></button>
+                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400" title="Excluir Iniciativa"><Trash2 size={14}/></button>
+                </div>}
+            </div>
+            {isExpanded && <div className="mt-2 ml-4 space-y-1">
+                {initiative.actions.map(action => <ActionItem key={action.id} action={action} journey={journey} initiative={initiative}/>)}
+                {isAdmin && <button onClick={handleAddAction} className="text-xs text-gray-500 hover:text-white p-1">+ Adicionar ação</button>}
+            </div>}
+        </div>
+    );
+};
+
+const KeyResultItem: React.FC<{ keyResult: KeyResult; journey: Journey; objective: Objective }> = ({ keyResult, journey, objective }) => {
+    const { activeClient, currentUser, updateKeyResult, deleteKeyResult, addInitiative } = useData();
+    const [isExpanded, setIsExpanded] = useState(true);
+    if (!activeClient) return null;
+    const isAdmin = currentUser?.role === 'admin';
+
+    const handleUpdateName = (name: string) => updateKeyResult(activeClient.id, journey.id, objective.id, keyResult.id, name, keyResult.progress);
+    const handleProgressChange = (progress: number) => updateKeyResult(activeClient.id, journey.id, objective.id, keyResult.id, keyResult.name, progress);
+    const handleDelete = () => window.confirm("Excluir este Resultado-Chave e seus itens?") && deleteKeyResult(activeClient.id, journey.id, objective.id, keyResult.id);
+    const handleAddInitiative = () => { const name = prompt("Nova iniciativa:"); if(name) addInitiative(activeClient.id, journey.id, objective.id, keyResult.id, name); }
+    
+    return (
+        <div className="ml-5 pl-4 border-l-2 border-gray-700">
+            <div className="flex items-center gap-2 group">
+                <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
+                <Milestone size={16} className="text-amber-400"/>
+                <div className="flex-1">
+                    <EditableField value={keyResult.name} onSave={handleUpdateName} isAdmin={isAdmin} inputClass="w-full">
+                        {keyResult.name}
+                    </EditableField>
+                </div>
+                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={handleAddInitiative} className="p-1 text-gray-400 hover:text-white" title="Adicionar Iniciativa"><Plus size={14}/></button>
+                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400" title="Excluir Resultado-Chave"><Trash2 size={14}/></button>
+                </div>}
+            </div>
+            <div className="flex items-center gap-2 ml-8 mt-2">
+                <span className="text-xs text-amber-400 font-bold w-10">{keyResult.progress}%</span>
+                <input type="range" min="0" max="100" value={keyResult.progress} onChange={e => handleProgressChange(parseInt(e.target.value))} disabled={!isAdmin} className="flex-1 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+            </div>
+            {isExpanded && <div className="mt-2 space-y-2">
+                {keyResult.initiatives.map(initiative => <InitiativeItem key={initiative.id} initiative={initiative} journey={journey} objective={objective} keyResult={keyResult}/>)}
+                {isAdmin && <button onClick={handleAddInitiative} className="text-xs text-gray-500 hover:text-white p-1 ml-5">+ Adicionar iniciativa</button>}
+            </div>}
+        </div>
+    );
+};
+
+const ObjectiveItem: React.FC<{ objective: Objective; journey: Journey }> = ({ objective, journey }) => {
+    const { activeClient, currentUser, updateObjective, deleteObjective, addKeyResult } = useData();
+    const [isExpanded, setIsExpanded] = useState(true);
+    if (!activeClient) return null;
+    const isAdmin = currentUser?.role === 'admin';
+
+    const handleUpdateName = (name: string) => updateObjective(activeClient.id, journey.id, objective.id, name);
+    const handleDelete = () => window.confirm("Excluir este objetivo e seus itens?") && deleteObjective(activeClient.id, journey.id, objective.id);
+    const handleAddKeyResult = () => { const name = prompt("Novo Resultado-Chave:"); if(name) addKeyResult(activeClient.id, journey.id, objective.id, name); }
+
+    return (
+        <div className="ml-5 pl-4 border-l-2 border-gray-700">
+            <div className="flex items-center gap-2 group">
+                <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
+                <CircleDot size={16} className="text-fuchsia-400"/>
+                <div className="flex-1 text-md font-semibold">
+                     <EditableField value={objective.name} onSave={handleUpdateName} isAdmin={isAdmin} textClass="text-fuchsia-400" inputClass="w-full text-md font-semibold text-fuchsia-400">
+                        {objective.name}
+                    </EditableField>
+                </div>
+                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={handleAddKeyResult} className="p-1 text-gray-400 hover:text-white" title="Adicionar Resultado-Chave"><Plus size={14}/></button>
+                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400" title="Excluir Objetivo"><Trash2 size={14}/></button>
+                </div>}
+            </div>
+            {isExpanded && <div className="mt-2 space-y-2">
+                {objective.keyResults.map(kr => <KeyResultItem key={kr.id} keyResult={kr} journey={journey} objective={objective} />)}
+                {isAdmin && <button onClick={handleAddKeyResult} className="text-xs text-gray-500 hover:text-white p-1 ml-5">+ Adicionar resultado-chave</button>}
+            </div>}
+        </div>
+    );
+};
+
+const JourneyItem: React.FC<{ journey: Journey }> = ({ journey }) => {
+    const { activeClient, currentUser, updateJourney, deleteJourney, addObjective } = useData();
+    const [isExpanded, setIsExpanded] = useState(true);
+    const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+    if (!activeClient) return null;
+    const isAdmin = currentUser?.role === 'admin';
+    const colors = ['#4f46e5', '#db2777', '#7c3aed', '#2563eb', '#0d9488', '#f59e0b'];
+
+    const handleUpdateName = (name: string) => updateJourney(activeClient.id, journey.id, name, journey.color);
+    const handleColorChange = (color: string) => { updateJourney(activeClient.id, journey.id, journey.name, color); setIsColorPickerOpen(false); };
+    const handleDelete = () => window.confirm("Excluir esta jornada e todos os seus itens?") && deleteJourney(activeClient.id, journey.id);
+    const handleAddObjective = () => { const name = prompt("Novo objetivo:"); if (name) addObjective(activeClient.id, journey.id, name); };
+
+    return (
+        <div className="bg-gray-800/50 rounded-xl border border-indigo-800/30">
+            <header className="p-3 flex justify-between items-center group">
+                <div className="flex items-center gap-3 flex-1">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="p-1"><ChevronDown size={20} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></button>
+                    <div className="relative">
+                        <button onClick={() => isAdmin && setIsColorPickerOpen(!isColorPickerOpen)} style={{ backgroundColor: journey.color }} className={`w-4 h-4 rounded-full ${isAdmin ? 'cursor-pointer' : ''}`}></button>
+                        {isColorPickerOpen && <div className="absolute top-6 left-0 bg-gray-900 p-2 rounded-md border border-gray-700 flex gap-2 z-10">
+                            {colors.map(c => <button key={c} style={{backgroundColor: c}} className="w-5 h-5 rounded-full" onClick={() => handleColorChange(c)}></button>)}
+                        </div>}
+                    </div>
+                    <div className="flex-1 text-lg font-bold">
+                        <EditableField value={journey.name} onSave={handleUpdateName} isAdmin={isAdmin} inputClass="w-full text-lg font-bold">
+                           {journey.name}
+                        </EditableField>
+                    </div>
+                </div>
+                {isAdmin && <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={handleAddObjective} className="p-2 text-gray-400 hover:text-white" title="Adicionar Objetivo"><Plus size={16}/></button>
+                    <button onClick={handleDelete} className="p-2 text-gray-400 hover:text-red-400" title="Excluir Jornada"><Trash2 size={16}/></button>
+                </div>}
+            </header>
+            {isExpanded && (
+                <div className="p-4 border-t border-indigo-800/50 space-y-2">
+                    {journey.objectives.map(obj => <ObjectiveItem key={obj.id} objective={obj} journey={journey} />)}
+                     {isAdmin && <button onClick={handleAddObjective} className="text-sm text-gray-500 hover:text-white p-1 ml-5">+ Adicionar objetivo</button>}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const GoalsView: React.FC = () => {
+    const { activeClient, addJourney, currentUser } = useData();
+    const [newJourneyName, setNewJourneyName] = useState('');
+
+    if (!activeClient) return null;
+
+    const handleAddJourney = () => {
+        if (newJourneyName.trim()) {
+            addJourney(activeClient.id, newJourneyName.trim());
+            setNewJourneyName('');
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            {activeClient.journeys.map(journey => (
+                <JourneyItem key={journey.id} journey={journey} />
+            ))}
+            {currentUser?.role === 'admin' && (
+                <div className="flex gap-2 p-3 bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-700">
+                    <input
+                        type="text"
+                        value={newJourneyName}
+                        onChange={(e) => setNewJourneyName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddJourney()}
+                        placeholder="Nome da nova jornada estratégica..."
+                        className="flex-1 bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500"
+                    />
+                    <button 
+                        onClick={handleAddJourney} 
+                        className="flex items-center justify-center gap-2 px-4 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors">
+                        <Plus size={16} /> Adicionar Jornada
+                    </button>
+                </div>
+            )}
+            {activeClient.journeys.length === 0 && (
+                <div className="text-center p-12 bg-gray-800/30 rounded-lg">
+                    <Target className="mx-auto w-12 h-12 text-gray-500 mb-4" />
+                    <h3 className="text-xl font-bold mb-2">Sem Metas Definidas</h3>
+                    <p className="text-gray-400">Crie a primeira Jornada para começar o planejamento estratégico.</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+const KanbanBoardView: React.FC = () => {
+    const { activeClient, addWeeklyPlan, deleteWeeklyPlan, currentUser } = useData();
+    if (!activeClient) return null;
+
+    const sortedPlans = (activeClient.weeklyPlans || []).slice().sort((a, b) => b.weekNumber - a.weekNumber);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <p className="text-gray-400">Organize as tarefas da semana no Kanban.</p>
+
+                {currentUser?.role === 'admin' && (
+                    <button
+                        onClick={() => addWeeklyPlan(activeClient.id)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Adicionar Semana
+                    </button>
+                )}
+            </div>
+
             {sortedPlans.length === 0 ? (
                 <div className="text-center p-12 bg-gray-800/30 rounded-lg">
-                    <ClipboardCheck className="mx-auto w-12 h-12 text-gray-500 mb-4" />
-                    <h3 className="text-xl font-bold mb-2">Nenhum plano semanal criado</h3>
-                    <p className="text-gray-400">Clique em "Adicionar Semana" para começar o planejamento.</p>
+                    <Calendar className="mx-auto w-12 h-12 text-gray-500 mb-4" />
+                    <h3 className="text-xl font-bold mb-2">Nenhum Plano Semanal</h3>
+                    <p className="text-gray-400">Clique em "Adicionar Semana" para criar o primeiro plano.</p>
                 </div>
             ) : (
-                <div className="space-y-12">
+                <div className="space-y-6">
                     {sortedPlans.map(plan => (
-                        <WeeklyKanban key={plan.id} plan={plan} />
+                        <WeeklyPlanCard 
+                            key={plan.id} 
+                            plan={plan} 
+                            onDelete={() => {
+                                if(window.confirm(`Tem certeza que deseja excluir a Semana ${plan.weekNumber}?`)) {
+                                    deleteWeeklyPlan(activeClient.id, plan.id)
+                                }
+                            }} 
+                        />
                     ))}
                 </div>
             )}
@@ -1427,239 +2131,478 @@ const WeeklyPlanningView: React.FC = () => {
     );
 };
 
-const WeeklyKanban: React.FC<{ plan: WeeklyPlan }> = ({ plan }) => {
-    const { activeClient, deleteWeeklyPlan, addKanbanCard, updateKanbanCard, deleteKanbanCard } = useData();
-    const [cardToEdit, setCardToEdit] = useState<Partial<KanbanCard> | null>(null);
+const WeeklyPlanCard: React.FC<{ plan: WeeklyPlan; onDelete: () => void; }> = ({ plan, onDelete }) => {
+    const { activeClient, currentUser } = useData();
+    const [isExpanded, setIsExpanded] = useState(plan.weekNumber === (activeClient?.weeklyPlans?.length || 1));
+    const [isAddCardModalOpen, setAddCardModalOpen] = useState(false);
+    const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
+    const [initialStatusForNewCard, setInitialStatusForNewCard] = useState<KanbanCardStatus>('todo');
+
+    if(!activeClient) return null;
     
-    if (!activeClient) return null;
+    const columns: KanbanCardStatus[] = ['todo', 'doing', 'done'];
+    const columnNames: Record<KanbanCardStatus, string> = { todo: 'A Fazer', doing: 'Fazendo', done: 'Feito' };
 
-    const handleDeleteWeek = () => {
-        if (window.confirm(`Tem certeza que deseja excluir a Semana ${plan.weekNumber} e todas as suas tarefas?`)) {
-            deleteWeeklyPlan(activeClient.id, plan.id);
-        }
-    };
+    const openAddCardModal = (status: KanbanCardStatus) => {
+        setInitialStatusForNewCard(status);
+        setEditingCard(null);
+        setAddCardModalOpen(true);
+    }
     
-    const handleSaveCard = (cardData: Omit<KanbanCard, 'id' | 'status'>) => {
-        if(cardToEdit && 'id' in cardToEdit && cardToEdit.id) {
-            updateKanbanCard(activeClient.id, plan.id, cardToEdit.id, cardData);
-        } else {
-            addKanbanCard(activeClient.id, plan.id, cardData);
-        }
-        setCardToEdit(null);
+    const openEditCardModal = (card: KanbanCard) => {
+        setEditingCard(card);
+        setAddCardModalOpen(true);
     };
-
-    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, cardId: string) => {
-        e.dataTransfer.setData('cardId', cardId);
-        e.dataTransfer.setData('planId', plan.id);
-    };
-
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>, status: KanbanCardStatus) => {
-        e.preventDefault();
-        const cardId = e.dataTransfer.getData('cardId');
-        const sourcePlanId = e.dataTransfer.getData('planId');
-        
-        if (cardId && sourcePlanId === plan.id) {
-            updateKanbanCard(activeClient.id, plan.id, cardId, { status });
-        }
-    };
-
-    const columns: { status: KanbanCardStatus; title: string }[] = [
-        { status: 'todo', title: 'A Fazer' },
-        { status: 'doing', title: 'Em Andamento' },
-        { status: 'done', title: 'Concluído' },
-    ];
 
     return (
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h3 className="text-xl font-bold text-white">Semana {plan.weekNumber}</h3>
-                    <p className="text-sm text-gray-400">{formatDate(plan.startDate)} - {formatDate(plan.endDate)}</p>
-                </div>
-                <button
-                    onClick={handleDeleteWeek}
-                    className="p-2 rounded-full hover:bg-red-900/50 transition-colors"
-                    title="Excluir Semana"
-                >
-                    <Trash2 className="w-5 h-5 text-red-400" />
-                </button>
+        <>
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 overflow-hidden">
+                <header className="p-4 flex justify-between items-center cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white">Semana {plan.weekNumber}</h3>
+                        <p className="text-sm text-gray-400">{formatDate(plan.startDate)} - {formatDate(plan.endDate)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {currentUser?.role === 'admin' && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                                className="p-2 rounded-full text-gray-400 hover:bg-red-900/50 hover:text-red-400 transition-colors"
+                                title="Excluir semana"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
+                        <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                </header>
+                {isExpanded && (
+                    <main className="p-4 border-t border-indigo-800/30">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {columns.map(status => (
+                                <div key={status} className="bg-gray-900/50 p-3 rounded-lg">
+                                    <h4 className="font-semibold mb-3 text-center">{columnNames[status]} ({plan.cards.filter(c => c.status === status).length})</h4>
+                                    <div className="space-y-3 min-h-[100px]">
+                                        {plan.cards.filter(c => c.status === status).map(card => (
+                                            <KanbanCardItem 
+                                                key={card.id} 
+                                                card={card} 
+                                                planId={plan.id}
+                                                onEdit={() => openEditCardModal(card)}
+                                            />
+                                        ))}
+                                    </div>
+                                    {currentUser?.role === 'admin' && (
+                                        <button 
+                                            onClick={() => openAddCardModal(status)}
+                                            className="mt-3 w-full text-sm text-gray-400 hover:text-white flex items-center justify-center gap-2 p-2 rounded-md hover:bg-gray-700 transition-colors">
+                                            <Plus size={16}/> Adicionar Tarefa
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </main>
+                )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {columns.map(({status, title}) => {
-                    const cardsInColumn = plan.cards.filter(c => c.status === status);
-                    return (
-                        <KanbanColumn
-                            key={status}
-                            title={title}
-                            status={status}
-                            cards={cardsInColumn}
-                            onDrop={handleDrop}
-                            onDragStart={handleDragStart}
-                            onAddNew={() => setCardToEdit({ status })}
-                            onEditCard={setCardToEdit}
-                        />
-                    );
-                })}
-            </div>
-            {cardToEdit && (
-                <EditCardModal 
-                    card={cardToEdit}
-                    onClose={() => setCardToEdit(null)}
-                    onSave={handleSaveCard}
+            {isAddCardModalOpen && (
+                <AddKanbanCardModal 
+                    planId={plan.id}
+                    card={editingCard}
+                    initialStatus={initialStatusForNewCard}
+                    onClose={() => setAddCardModalOpen(false)}
                 />
             )}
-        </div>
+        </>
     );
 };
 
-const KanbanColumn: React.FC<{
-    title: string;
-    status: KanbanCardStatus;
-    cards: KanbanCard[];
-    onDrop: (e: React.DragEvent<HTMLDivElement>, status: KanbanCardStatus) => void;
-    onDragStart: (e: React.DragEvent<HTMLDivElement>, cardId: string) => void;
-    onAddNew: () => void;
-    onEditCard: (card: KanbanCard) => void;
-}> = ({ title, status, cards, onDrop, onDragStart, onAddNew, onEditCard }) => {
-    const [isDragOver, setIsDragOver] = useState(false);
-    return (
-        <div
-            onDrop={(e) => { onDrop(e, status); setIsDragOver(false); }}
-            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-            onDragLeave={() => setIsDragOver(false)}
-            className={`flex flex-col bg-gray-900/50 p-4 rounded-lg transition-all ${isDragOver ? 'ring-2 ring-indigo-500' : 'ring-0'}`}
-        >
-            <h4 className="font-semibold text-white mb-4 flex justify-between items-center">
-                {title}
-                <span className="text-sm font-normal bg-gray-700 text-gray-300 rounded-full w-6 h-6 flex items-center justify-center">{cards.length}</span>
-            </h4>
-            <div className="flex-1 space-y-4 min-h-[100px]">
-                {cards.map(card => (
-                    <KanbanCardComponent 
-                        key={card.id} 
-                        card={card}
-                        onDragStart={(e) => onDragStart(e, card.id)}
-                        onEdit={() => onEditCard(card)}
-                    />
-                ))}
-            </div>
-            <button
-                onClick={onAddNew}
-                className="mt-4 w-full text-sm text-gray-400 hover:text-white hover:bg-gray-700 p-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-            >
-                <Plus size={16} /> Adicionar Ação
-            </button>
-        </div>
-    );
-};
+const AddKanbanCardModal: React.FC<{ planId: string; card: KanbanCard | null; initialStatus: KanbanCardStatus; onClose: () => void; }> = ({ planId, card, initialStatus, onClose }) => {
+    const { activeClient, addKanbanCard, updateKanbanCard } = useData();
+    const [title, setTitle] = useState(card?.title || '');
+    const [description, setDescription] = useState(card?.description || '');
+    const [status, setStatus] = useState(card?.status || initialStatus);
+    const [actionId, setActionId] = useState(card?.actionId || '');
 
-const KanbanCardComponent: React.FC<{ card: KanbanCard; onDragStart: (e: React.DragEvent<HTMLDivElement>) => void; onEdit: () => void; }> = ({ card, onDragStart, onEdit }) => {
-    const {activeClient, deleteKanbanCard} = useData();
-
-    const handleDelete = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if(activeClient && window.confirm("Tem certeza que deseja excluir esta ação?")){
-            const plan = activeClient.weeklyPlans.find(p => p.cards.some(c => c.id === card.id));
-            if(plan) {
-                deleteKanbanCard(activeClient.id, plan.id, card.id);
-            }
-        }
-    };
-
-    return (
-        <div
-            draggable
-            onDragStart={onDragStart}
-            className="bg-gray-800 p-3 rounded-lg border border-gray-700 group cursor-grab active:cursor-grabbing"
-        >
-            <div className="flex justify-between items-start">
-                <h5 className="font-bold text-sm text-gray-200 mb-1">{card.title}</h5>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                    <button onClick={onEdit} className="p-1 text-gray-400 hover:text-white"><Edit size={14} /></button>
-                    <button onClick={handleDelete} className="p-1 text-gray-400 hover:text-red-400"><Trash2 size={14} /></button>
-                </div>
-            </div>
-            <p className="text-xs text-indigo-300 mb-2 bg-indigo-900/50 inline-block px-2 py-0.5 rounded">{card.goal}</p>
-            <div className="flex justify-between items-center text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700/50">
-                <div className="flex items-center gap-1.5">
-                    <User size={12} />
-                    <span>{card.assignee || 'N/A'}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <Calendar size={12} />
-                    <span>{card.dueDate ? formatDate(card.dueDate) : 'N/A'}</span>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const EditCardModal: React.FC<{ card: Partial<KanbanCard>; onClose: () => void; onSave: (cardData: Omit<KanbanCard, 'id' | 'status'>) => void; }> = ({ card, onClose, onSave }) => {
-    const [formData, setFormData] = useState({
-        title: card.title || '',
-        goal: card.goal || '',
-        description: card.description || '',
-        assignee: card.assignee || '',
-        dueDate: card.dueDate ? new Date(card.dueDate).toISOString().split('T')[0] : '',
-    });
+    if (!activeClient) return null;
     
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    const availableActions = useMemo(() => {
+        const allActions: ({action: Action, journey: Journey, initiative: Initiative})[] = [];
+        activeClient.journeys.forEach(j => {
+            j.objectives.forEach(o => {
+                o.keyResults.forEach(k => {
+                    k.initiatives.forEach(i => {
+                        i.actions.forEach(a => {
+                            if (!a.isInKanban || a.id === card?.actionId) {
+                                allActions.push({ action: a, journey: j, initiative: i });
+                            }
+                        });
+                    });
+                });
+            });
+        });
+        return allActions;
+    }, [activeClient.journeys, card?.actionId]);
+    
+    const handleActionChange = (newActionId: string) => {
+        setActionId(newActionId);
+        if (newActionId) {
+            const selected = availableActions.find(a => a.action.id === newActionId);
+            if(selected) setTitle(selected.action.name);
+        } else {
+            if (!card) setTitle('');
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave({
-            ...formData,
-            dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : '',
-        });
+        if (!title.trim()) return;
+
+        const journeyId = availableActions.find(a => a.action.id === actionId)?.journey.id;
+        
+        const cardData = {
+            title,
+            description,
+            assignee: 'Não atribuído',
+            dueDate: new Date().toISOString(),
+            goal: '',
+            actionId: actionId || undefined,
+            journeyId: journeyId,
+        };
+
+        if(card) {
+            updateKanbanCard(activeClient.id, planId, card.id, { ...cardData, status });
+        } else {
+            addKanbanCard(activeClient.id, planId, cardData, status);
+        }
+        onClose();
     };
 
     return (
-         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
             <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-indigo-700/50">
                 <form onSubmit={handleSubmit}>
                     <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                        <h2 className="text-xl font-bold">{card.id ? "Editar Ação" : "Nova Ação"}</h2>
+                        <h2 className="text-xl font-bold">{card ? 'Editar Tarefa' : 'Adicionar Tarefa'}</h2>
                         <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
                     </header>
                     <main className="p-6 space-y-4">
                         <div>
-                             <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">Nome da Ação</label>
-                             <input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full input-style" />
-                        </div>
-                         <div>
-                             <label htmlFor="goal" className="block text-sm font-medium text-gray-300 mb-1">Objetivo da Semana</label>
-                             <input type="text" name="goal" value={formData.goal} onChange={handleChange} required className="w-full input-style" />
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Vincular a uma Ação</label>
+                            <select value={actionId} onChange={e => handleActionChange(e.target.value)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                <option value="">Nenhuma (tarefa avulsa)</option>
+                                {availableActions.map(({ action, journey, initiative }) => (
+                                    <option key={action.id} value={action.id}>
+                                        {journey.name} &gt; {initiative.name} &gt; {action.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div>
-                            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
-                            <textarea name="description" value={formData.description} onChange={handleChange} rows={4} className="w-full input-style"></textarea>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Título</label>
+                            <input type="text" value={title} onChange={e => setTitle(e.target.value)} required disabled={!!actionId} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-70" />
                         </div>
-                         <div className="grid grid-cols-2 gap-4">
-                             <div>
-                                <label htmlFor="assignee" className="block text-sm font-medium text-gray-300 mb-1">Responsável</label>
-                                <input type="text" name="assignee" value={formData.assignee} onChange={handleChange} className="w-full input-style" />
-                            </div>
-                             <div>
-                                <label htmlFor="dueDate" className="block text-sm font-medium text-gray-300 mb-1">Prazo</label>
-                                <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} className="w-full input-style" />
-                            </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
+                            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                            <select value={status} onChange={e => setStatus(e.target.value as KanbanCardStatus)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="todo">A Fazer</option>
+                                <option value="doing">Fazendo</option>
+                                <option value="done">Feito</option>
+                            </select>
                         </div>
                     </main>
-                    <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                     <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
                         <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar</button>
                     </footer>
                 </form>
             </div>
-            <style>{`.input-style { background-color: #1f2937; border: 1px solid #4b5563; color: white; padding: 8px 12px; border-radius: 6px; } .input-style:focus { outline: none; ring: 2px; ring-color: #6366f1; border-color: #6366f1 }`}</style>
         </div>
-    )
+    );
 };
 
 
-// Editing Cart Bar
+const KanbanCardItem: React.FC<{ card: KanbanCard, planId: string, onEdit: () => void; }> = ({ card, planId, onEdit }) => {
+    const { currentUser, activeClient, deleteKanbanCard } = useData();
+
+    if (!activeClient) return null;
+    
+    const journey = card.journeyId ? activeClient.journeys.find(j => j.id === card.journeyId) : null;
+    const borderColor = journey ? journey.color : 'border-gray-700';
+
+    return (
+        <div className={`bg-gray-800 p-3 rounded-lg border-l-4 group cursor-pointer`} style={{ borderColor }}>
+            <div className="flex justify-between items-start">
+                <p className="font-semibold text-white text-sm pr-2">{card.title}</p>
+                 {currentUser?.role === 'admin' && (
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <button onClick={onEdit} className="p-1 hover:bg-gray-700 rounded-md"><Pencil size={12} /></button>
+                        <button onClick={() => { if(window.confirm("Excluir tarefa?")) deleteKanbanCard(activeClient.id, planId, card.id)}} className="p-1 hover:bg-gray-700 rounded-md"><Trash2 size={12} /></button>
+                    </div>
+                 )}
+            </div>
+            <p className="text-gray-400 text-xs mt-1">{card.description || "Sem descrição."}</p>
+            {card.actionId && (
+                <div className="mt-2">
+                    <span className="flex items-center gap-1 text-xs text-indigo-400 bg-indigo-900/50 w-fit px-2 py-0.5 rounded-full">
+                        <Target size={12} />
+                        Meta Vinculada
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Chatbot View
+const ChatbotView: React.FC = () => {
+    const { activeClient, addChatSession, updateChatSession, deleteChatSession } = useData();
+    const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+    const activeSession = useMemo(() => {
+        if (!activeClient || !activeSessionId) return null;
+        return (activeClient.chatSessions || []).find(s => s.id === activeSessionId) || null;
+    }, [activeClient, activeSessionId]);
+
+    useEffect(() => {
+        if (activeClient && activeClient.chatSessions && activeClient.chatSessions.length > 0 && !activeSessionId) {
+            setActiveSessionId(activeClient.chatSessions[activeClient.chatSessions.length - 1].id);
+        }
+    }, [activeClient, activeSessionId]);
+
+
+    const handleNewChat = () => {
+        if (!activeClient) return;
+        const newSession = addChatSession(activeClient.id);
+        setActiveSessionId(newSession.id);
+    };
+    
+    const handleDeleteChat = (sessionId: string) => {
+         if (!activeClient || !window.confirm("Tem certeza que deseja excluir esta conversa?")) return;
+         deleteChatSession(activeClient.id, sessionId);
+         if (activeSessionId === sessionId) {
+             const remainingSessions = (activeClient.chatSessions || []).filter(s => s.id !== sessionId);
+             setActiveSessionId(remainingSessions.length > 0 ? remainingSessions[remainingSessions.length-1].id : null);
+         }
+    };
+    
+    if(!activeClient) return null;
+
+    return (
+         <div className="flex h-full max-h-[calc(100vh-8rem)]">
+            <div className="w-1/3 max-w-sm bg-gray-800/50 rounded-l-xl border-r border-indigo-800/30 flex flex-col">
+                <div className="p-4 border-b border-indigo-800/30 flex justify-between items-center">
+                    <h2 className="text-lg font-bold">Conversas</h2>
+                    <button onClick={handleNewChat} className="p-2 rounded-full hover:bg-gray-700">
+                        <MessageSquarePlus size={20} />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    {(activeClient.chatSessions || []).slice().reverse().map(session => (
+                        <div 
+                            key={session.id} 
+                            onClick={() => setActiveSessionId(session.id)}
+                            className={`p-3 m-2 rounded-lg cursor-pointer group flex justify-between items-center ${activeSessionId === session.id ? 'bg-indigo-600' : 'hover:bg-gray-700'}`}
+                        >
+                            <p className="truncate text-sm">{session.title}</p>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteChat(session.id); }}
+                                className="p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-900/50">
+                                <Trash2 size={14} className="text-red-400"/>
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="flex-1 bg-gray-800/30 rounded-r-xl flex flex-col">
+                {activeSession ? (
+                    <ChatWindow session={activeSession} key={activeSession.id}/>
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                        <BrainCircuit size={48} className="text-gray-500 mb-4"/>
+                        <h3 className="text-xl font-bold">Assistente IA</h3>
+                        <p className="text-gray-400">Selecione uma conversa ou inicie uma nova para começar.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const ChatWindow: React.FC<{session: ChatSession}> = ({ session }) => {
+    const { activeClient, updateChatSession } = useData();
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+    useEffect(scrollToBottom, [session.messages]);
+
+    if(!activeClient) return null;
+
+    const handleSendMessage = async () => {
+        if (input.trim() === '' || isLoading) return;
+        setIsLoading(true);
+        const userMessage: ChatMessage = { sender: 'user', text: input, timestamp: new Date().toISOString() };
+        const updatedMessages = [...session.messages, userMessage];
+        updateChatSession(activeClient.id, session.id, { messages: updatedMessages });
+        setInput('');
+
+        const contextDocs = activeClient.deliverables.filter(d => session.sourceIds.includes(d.id));
+
+        const aiResponseText = await generateChatResponseWithContext(input, contextDocs, session.tone, session.size, session.orientation);
+        
+        const aiMessage: ChatMessage = { sender: 'ai', text: aiResponseText, timestamp: new Date().toISOString() };
+        
+        let finalTitle = session.title;
+        if (session.title === 'Nova Conversa' && updatedMessages.length === 1) {
+            // Very basic title generation
+            finalTitle = input.substring(0, 30) + (input.length > 30 ? '...' : '');
+        }
+
+        updateChatSession(activeClient.id, session.id, { messages: [...updatedMessages, aiMessage], title: finalTitle });
+        setIsLoading(false);
+    };
+
+    return (
+        <div className="flex flex-col h-full">
+            <ChatHeader session={session} />
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                {session.messages.map((msg, index) => (
+                    <div key={index} className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                        {msg.sender === 'ai' && <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0"><BotMessageSquare size={20}/></div>}
+                        <div className={`max-w-xl p-3 rounded-xl ${msg.sender === 'user' ? 'bg-gray-700' : 'bg-gray-900/50'}`}>
+                             <MarkdownContentRenderer content={msg.text} />
+                        </div>
+                    </div>
+                ))}
+                 {isLoading && (
+                     <div className="flex gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0"><BotMessageSquare size={20}/></div>
+                        <div className="max-w-xl p-3 rounded-xl bg-gray-900/50">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-0"></div>
+                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-150"></div>
+                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-300"></div>
+                            </div>
+                        </div>
+                    </div>
+                 )}
+                <div ref={messagesEndRef} />
+            </div>
+            <div className="p-4 border-t border-indigo-800/30">
+                <div className="flex items-center gap-2 bg-gray-900/50 border border-gray-600 rounded-lg pr-2">
+                    <textarea
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                        placeholder="Pergunte algo com base nos documentos selecionados..."
+                        rows={1}
+                        className="flex-1 bg-transparent p-2 focus:outline-none resize-none max-h-40"
+                    />
+                    <button onClick={handleSendMessage} disabled={isLoading || !input.trim()} className="p-2 bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-gray-600">
+                        <SendHorizonal size={16}/>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ChatHeader: React.FC<{session: ChatSession}> = ({ session }) => {
+    const { activeClient } = useData();
+    const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+    if (!activeClient) return null;
+
+    return (
+        <div className="p-4 border-b border-indigo-800/30">
+            <div className="flex justify-between items-center">
+                <h3 className="font-bold text-lg">{session.title}</h3>
+                <button onClick={() => setIsConfigOpen(!isConfigOpen)} className="p-2 rounded-full hover:bg-gray-700">
+                    <SlidersHorizontal size={20} />
+                </button>
+            </div>
+            {isConfigOpen && <ChatConfigPanel session={session} />}
+        </div>
+    );
+};
+
+const ChatConfigPanel: React.FC<{session: ChatSession}> = ({session}) => {
+    const { activeClient, updateChatSession } = useData();
+    
+    if (!activeClient) return null;
+
+    const handleUpdate = (field: keyof ChatSession, value: any) => {
+        updateChatSession(activeClient.id, session.id, { [field]: value });
+    };
+    
+    const toggleSource = (docId: string) => {
+        const newSourceIds = session.sourceIds.includes(docId)
+            ? session.sourceIds.filter(id => id !== docId)
+            : [...session.sourceIds, docId];
+        handleUpdate('sourceIds', newSourceIds);
+    };
+
+    return (
+        <div className="pt-4 mt-4 border-t border-indigo-800/50 space-y-4">
+            <div>
+                <label className="text-sm font-semibold text-gray-300">Fonte de Conhecimento</label>
+                <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                    {activeClient.deliverables.map(doc => (
+                        <div key={doc.id} className="flex items-center gap-2 p-2 bg-gray-900/50 rounded-md">
+                            <button onClick={() => toggleSource(doc.id)}>
+                                {session.sourceIds.includes(doc.id) ? <CheckSquare size={20} className="text-indigo-400"/> : <Square size={20} className="text-gray-500"/>}
+                            </button>
+                            <span className="text-sm truncate">{doc.name}</span>
+                        </div>
+                    ))}
+                    {activeClient.deliverables.length === 0 && <p className="text-xs text-gray-500 italic">Nenhum documento na biblioteca para usar como fonte.</p>}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                 <div>
+                    <label className="text-sm font-semibold text-gray-300">Tom da Resposta</label>
+                    <select value={session.tone} onChange={e => handleUpdate('tone', e.target.value)} className="w-full mt-1 bg-gray-900/50 p-2 rounded-md text-sm border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option>Profissional</option>
+                        <option>Amigável</option>
+                        <option>Direto</option>
+                        <option>Detalhado</option>
+                    </select>
+                </div>
+                 <div>
+                    <label className="text-sm font-semibold text-gray-300">Tamanho da Resposta</label>
+                     <select value={session.size} onChange={e => handleUpdate('size', e.target.value)} className="w-full mt-1 bg-gray-900/50 p-2 rounded-md text-sm border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option>Curto</option>
+                        <option>Médio</option>
+                        <option>Longo</option>
+                    </select>
+                </div>
+            </div>
+
+             <div>
+                <label className="text-sm font-semibold text-gray-300">Outras Orientações</label>
+                <input 
+                    type="text" 
+                    value={session.orientation} 
+                    onChange={e => handleUpdate('orientation', e.target.value)}
+                    placeholder="Ex: Responda em tópicos"
+                    className="w-full mt-1 bg-gray-900/50 p-2 rounded-md text-sm border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+            </div>
+        </div>
+    );
+};
+
+
+
+// Editing and Modal Components
 const EditingCartBar: React.FC<{
     changedPillarsCount: number;
     onCreateAssessment: () => void;
@@ -1669,135 +2612,84 @@ const EditingCartBar: React.FC<{
     if (changedPillarsCount === 0) return null;
 
     return (
-        <div className="no-print fixed bottom-4 right-4 z-40 bg-gray-700/50 backdrop-blur-lg border border-indigo-600 rounded-lg shadow-2xl p-4 flex items-center gap-4 animate-fade-in-up">
-            <div className="flex items-center gap-2 text-white">
-                <SlidersHorizontal className="h-5 w-5 text-indigo-400" />
-                <span className="font-bold">{changedPillarsCount}</span>
-                <span className="text-sm">{changedPillarsCount > 1 ? 'pilares alterados' : 'pilar alterado'}</span>
-            </div>
-            <div className="h-8 border-l border-gray-600"></div>
+        <div className="no-print fixed bottom-4 right-4 z-40 bg-indigo-700 text-white rounded-lg shadow-2xl flex items-center gap-4 p-3 animate-slide-up">
             <div className="flex items-center gap-2">
-                 <button onClick={onUpdateAssessment} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors">
-                    Salvar Edições
-                </button>
-                <button onClick={onCreateAssessment} className="px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors">
-                    Criar Nova Avaliação
-                </button>
-                <button onClick={onCancel} className="p-2 rounded-full hover:bg-gray-600 transition-colors" title="Cancelar">
-                    <X className="h-4 w-4 text-gray-300" />
-                </button>
+                <Package className="w-6 h-6"/>
+                <span className="font-semibold">{changedPillarsCount} {changedPillarsCount > 1 ? 'pilares alterados' : 'pilar alterado'}</span>
             </div>
+            <div className="w-px h-8 bg-indigo-500"></div>
+            <div className="flex items-center gap-2">
+                 <button onClick={onCreateAssessment} className="px-3 py-1.5 text-sm font-semibold bg-green-500 hover:bg-green-600 rounded-md">Salvar como Nova Avaliação</button>
+                 <button onClick={onUpdateAssessment} className="px-3 py-1.5 text-sm font-semibold bg-yellow-500 hover:bg-yellow-600 rounded-md">Atualizar Avaliação Existente</button>
+                 <button onClick={onCancel} className="p-2 rounded-full hover:bg-white/10" title="Cancelar Alterações">
+                    <X size={20}/>
+                 </button>
+            </div>
+            <style>{`
+                .animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
+                @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+            `}</style>
         </div>
     );
 };
 
-// Modals...
 const CreateAssessmentModal: React.FC<{
     onClose: () => void;
     onCreate: (scores: PillarScores) => void;
     initialAssessment: Assessment | null;
 }> = ({ onClose, onCreate, initialAssessment }) => {
-    const [activePillar, setActivePillar] = useState<Pillar>(PILLARS[0]);
-    
-    // Initialize scores: if there's an initial assessment, use its scores, otherwise start fresh
     const [scores, setScores] = useState<PillarScores>(() => {
+        // If there's an existing assessment, start with its scores. Otherwise, start fresh.
         if (initialAssessment) {
-            return JSON.parse(JSON.stringify(initialAssessment.scores)); // Deep copy
+            return JSON.parse(JSON.stringify(initialAssessment.scores));
         }
         return PILLARS.reduce((acc, pillar) => {
             acc[pillar] = { ...INITIAL_PILLAR_SCORE };
             return acc;
         }, {} as PillarScores);
     });
+    const [activePillar, setActivePillar] = useState<Pillar>(PILLARS[0]);
 
-    const handleScoreChange = (pillar: Pillar, questionIndex: number, value: number) => {
-        setScores(prev => ({
-            ...prev,
-            [pillar]: {
-                ...prev[pillar],
-                responses: prev[pillar].responses.map((r, i) => i === questionIndex ? value : r)
-            }
-        }));
+    const handlePillarChange = (pillar: Pillar, newPillarScore: PillarScore) => {
+        setScores(prev => ({...prev, [pillar]: newPillarScore}));
     };
-
-    const handleNotesChange = (pillar: Pillar, notes: string) => {
-        setScores(prev => ({ ...prev, [pillar]: { ...prev[pillar], notes } }));
-    };
-
-    const handleGoalChange = (pillar: Pillar, goal: number) => {
-        setScores(prev => ({ ...prev, [pillar]: { ...prev[pillar], goal } }));
-    };
-    
-    const currentPillarData = scores[activePillar];
-    const currentPillarOverall = calculatePillarScore(currentPillarData.responses);
 
     return (
-        <div className="no-print fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col border border-indigo-700/50">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-indigo-700/50">
                 <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                    <h2 className="text-xl font-bold">Nova Avaliação de Maturidade</h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+                    <h2 className="text-2xl font-bold">Criar Nova Avaliação</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={24} /></button>
                 </header>
                 <div className="flex-1 flex overflow-hidden">
-                    <nav className="w-1/4 border-r border-indigo-800/50 overflow-y-auto p-2">
-                        {PILLARS.map(pillar => {
-                            const Icon = ICON_MAP[pillar];
-                            const score = calculatePillarScore(scores[pillar].responses);
-                            return (
-                                <button
-                                    key={pillar}
-                                    onClick={() => setActivePillar(pillar)}
-                                    className={`w-full text-left flex items-center gap-3 p-2.5 rounded-lg mb-1 text-sm transition-colors ${activePillar === pillar ? 'bg-indigo-600 text-white' : 'hover:bg-gray-700'}`}
-                                >
-                                    <Icon className="w-5 h-5" style={{ color: activePillar === pillar ? 'white' : PILLAR_DATA[pillar].color }} />
-                                    <span className="flex-1">{PILLAR_DATA[pillar].name}</span>
-                                    <span className="font-bold" style={{ color: activePillar === pillar ? 'white' : PILLAR_DATA[pillar].color }}>{score}</span>
+                    <aside className="w-1/4 max-w-xs p-4 border-r border-indigo-800/50 overflow-y-auto">
+                        <nav className="space-y-2">
+                            {PILLARS.map(p => (
+                                <button key={p} onClick={() => setActivePillar(p)} className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${activePillar === p ? 'bg-indigo-600 text-white' : 'hover:bg-gray-700'}`}>
+                                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: PILLAR_DATA[p].color}}></div>
+                                    {PILLAR_DATA[p].name}
                                 </button>
-                            );
-                        })}
-                    </nav>
-                    <main className="flex-1 p-6 overflow-y-auto">
-                        <h3 className="text-2xl font-bold mb-2" style={{color: PILLAR_DATA[activePillar].color}}>{PILLAR_DATA[activePillar].name}</h3>
-                        <p className="text-gray-400 mb-6">{PILLAR_DATA[activePillar].description}</p>
-                        
-                        <div className="space-y-4">
-                            {PILLAR_QUESTIONS[activePillar].map((question, index) => (
-                                <QuestionSlider 
-                                    key={index} 
-                                    question={question}
-                                    value={currentPillarData.responses[index]}
-                                    onChange={(value) => handleScoreChange(activePillar, index, value)}
-                                />
                             ))}
-                        </div>
-
-                         <div className="mt-8">
-                            <h4 className="font-semibold mb-2">Notas e Observações</h4>
-                             <textarea
-                                value={currentPillarData.notes}
-                                onChange={(e) => handleNotesChange(activePillar, e.target.value)}
-                                rows={3}
-                                className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Adicione insights, pontos de melhoria, ou próximos passos..."
-                            />
-                        </div>
-
+                        </nav>
+                    </aside>
+                    <main className="flex-1 overflow-y-auto p-6">
+                        <PillarAssessmentForm
+                            key={activePillar}
+                            pillar={activePillar}
+                            initialScore={scores[activePillar]}
+                            onSave={handlePillarChange}
+                        />
                     </main>
                 </div>
-                <footer className="flex justify-between items-center p-4 border-t border-indigo-800/50">
-                    <div className="flex items-center gap-4">
-                       <span className="text-sm font-medium">Pontuação do Pilar:</span>
-                       <span className="text-2xl font-bold" style={{color: PILLAR_DATA[activePillar].color}}>{currentPillarOverall} / 100</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
-                        <button onClick={() => onCreate(scores)} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Nova Avaliação</button>
-                    </div>
+                 <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                    <button onClick={() => onCreate(scores)} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Criar Avaliação</button>
                 </footer>
             </div>
         </div>
     );
 };
+
 
 const EditAssessmentModal: React.FC<{
     assessment: Assessment;
@@ -1805,71 +2697,39 @@ const EditAssessmentModal: React.FC<{
     onSavePillar: (pillar: Pillar, newScore: PillarScore) => void;
     onClose: () => void;
 }> = ({ assessment, editedScores, onSavePillar, onClose }) => {
-    // This modal now only serves to show the list of pillars to edit.
-    // Clicking a pillar opens the PillarDetailsModal
-    const [pillarToEdit, setPillarToEdit] = useState<Pillar | null>(null);
-    const [currentPillarState, setCurrentPillarState] = useState<PillarScore | null>(null);
-
-    const handleEditPillar = (pillar: Pillar) => {
-        // We need a deep copy to avoid direct mutation before saving
-        setCurrentPillarState(JSON.parse(JSON.stringify(editedScores[pillar])));
-        setPillarToEdit(pillar);
-    };
-    
-    const handleSaveAndClosePillarModal = () => {
-        if (pillarToEdit && currentPillarState) {
-            onSavePillar(pillarToEdit, currentPillarState);
-        }
-        setPillarToEdit(null);
-        setCurrentPillarState(null);
-    };
-    
-    if (pillarToEdit && currentPillarState) {
-        return (
-            <PillarDetailsModal
-                pillar={pillarToEdit}
-                initialPillarScore={currentPillarState}
-                onSaveToCart={(p, s) => { onSavePillar(p,s); setPillarToEdit(null); }}
-                onClose={() => setPillarToEdit(null)}
-            />
-        );
-    }
+    const [activePillar, setActivePillar] = useState<Pillar>(PILLARS[0]);
 
     return (
-        <div className="no-print fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-indigo-700/50">
+         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-indigo-700/50">
                 <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                    <div>
-                        <h2 className="text-xl font-bold">Editando Avaliação</h2>
-                        <p className="text-sm text-gray-400">De {formatDate(assessment.date)}</p>
-                    </div>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+                    <h2 className="text-2xl font-bold">Editando Avaliação de {formatDate(assessment.date)}</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={24} /></button>
                 </header>
-                 <div className="p-4">
-                    <p className="text-sm text-center text-gray-400 mb-4">Selecione um pilar para editar seus detalhes. As alterações ficarão salvas no seu carrinho de edições.</p>
-                     {PILLARS.map(pillar => {
-                        const Icon = ICON_MAP[pillar];
-                        const score = calculatePillarScore(editedScores[pillar].responses);
-                        return (
-                            <button
-                                key={pillar}
-                                onClick={() => handleEditPillar(pillar)}
-                                className="w-full text-left flex items-center justify-between gap-3 p-3 rounded-lg mb-1 text-sm transition-colors hover:bg-gray-700"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Icon className="w-5 h-5" style={{ color: PILLAR_DATA[pillar].color }} />
-                                    <span className="flex-1 font-medium">{PILLAR_DATA[pillar].name}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="font-bold text-lg" style={{ color: PILLAR_DATA[pillar].color }}>{score}</span>
-                                    <ChevronUp className="w-5 h-5 text-gray-500 -rotate-90"/>
-                                </div>
-                            </button>
-                        );
-                    })}
+                <div className="flex-1 flex overflow-hidden">
+                    <aside className="w-1/4 max-w-xs p-4 border-r border-indigo-800/50 overflow-y-auto">
+                        <nav className="space-y-2">
+                             {PILLARS.map(p => (
+                                <button key={p} onClick={() => setActivePillar(p)} className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${activePillar === p ? 'bg-indigo-600 text-white' : 'hover:bg-gray-700'}`}>
+                                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: PILLAR_DATA[p].color}}></div>
+                                    {PILLAR_DATA[p].name}
+                                </button>
+                            ))}
+                        </nav>
+                    </aside>
+                    <main className="flex-1 overflow-y-auto p-6">
+                        <PillarAssessmentForm
+                            key={activePillar}
+                            pillar={activePillar}
+                            initialScore={editedScores[activePillar]}
+                            onSave={onSavePillar}
+                            isEditing
+                        />
+                    </main>
                 </div>
-                <footer className="p-4 border-t border-indigo-800/50 text-center">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Fechar</button>
+                 <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                     <p className="text-sm text-gray-400 mr-auto">As alterações são salvas automaticamente no "carrinho de edição".</p>
+                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Fechar</button>
                 </footer>
             </div>
         </div>
@@ -1882,99 +2742,188 @@ const PillarDetailsModal: React.FC<{
     onSaveToCart: (pillar: Pillar, newScore: PillarScore) => void;
     onClose: () => void;
 }> = ({ pillar, initialPillarScore, onSaveToCart, onClose }) => {
-    // This state is local to the modal for editing
-    const [pillarScore, setPillarScore] = useState<PillarScore>(JSON.parse(JSON.stringify(initialPillarScore)));
-
-    const handleScoreChange = (questionIndex: number, value: number) => {
-        setPillarScore(prev => ({
-            ...prev,
-            responses: prev.responses.map((r, i) => i === questionIndex ? value : r)
-        }));
-    };
-    
-    const handleNotesChange = (notes: string) => setPillarScore(prev => ({ ...prev, notes }));
-    
-    const handleSave = () => {
-        onSaveToCart(pillar, pillarScore);
-        onClose();
-    };
-
-    const currentPillarOverall = calculatePillarScore(pillarScore.responses);
     
     return (
-         <div className="no-print fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl h-[90vh] flex flex-col border border-indigo-700/50">
-                 <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                    <h2 className="text-xl font-bold" style={{color: PILLAR_DATA[pillar].color}}>Editando {PILLAR_DATA[pillar].name}</h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-indigo-700/50">
+                <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
+                    <h2 className="text-2xl font-bold">Editar Pilar: <span style={{color: PILLAR_DATA[pillar].color}}>{PILLAR_DATA[pillar].name}</span></h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={24} /></button>
                 </header>
-                 <main className="flex-1 p-6 overflow-y-auto">
-                    <p className="text-gray-400 mb-6">{PILLAR_DATA[pillar].description}</p>
-                    <div className="space-y-4">
-                        {PILLAR_QUESTIONS[pillar].map((question, index) => (
-                            <QuestionSlider 
-                                key={index} 
-                                question={question}
-                                value={pillarScore.responses[index]}
-                                onChange={(value) => handleScoreChange(index, value)}
-                            />
-                        ))}
+                <main className="flex-1 overflow-y-auto p-6">
+                     <PillarAssessmentForm
+                        pillar={pillar}
+                        initialScore={initialPillarScore}
+                        onSave={(p, newScore) => onSaveToCart(p, newScore)} // onSave here is actually onSaveToCart
+                        isEditing
+                    />
+                </main>
+                 <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                     <p className="text-sm text-gray-400 mr-auto">As alterações são salvas automaticamente no "carrinho de edição".</p>
+                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Fechar</button>
+                </footer>
+            </div>
+        </div>
+    );
+}
+
+const PillarAssessmentForm: React.FC<{
+    pillar: Pillar,
+    initialScore: PillarScore,
+    onSave: (pillar: Pillar, newScore: PillarScore) => void,
+    isEditing?: boolean
+}> = ({ pillar, initialScore, onSave, isEditing = false }) => {
+    const [pillarScore, setPillarScore] = useState<PillarScore>(initialScore);
+
+    const handleResponseChange = (questionIndex: number, value: number) => {
+        const newResponses = [...pillarScore.responses];
+        newResponses[questionIndex] = value;
+        const newScore = { ...pillarScore, responses: newResponses };
+        setPillarScore(newScore);
+        if(isEditing) {
+            onSave(pillar, newScore);
+        }
+    };
+    
+    const handleGoalChange = (value: number) => {
+        const newScore = { ...pillarScore, goal: value };
+        setPillarScore(newScore);
+        if (isEditing) {
+            onSave(pillar, newScore);
+        }
+    }
+    
+    const handleNotesChange = (value: string) => {
+        const newScore = { ...pillarScore, notes: value };
+        setPillarScore(newScore);
+         if (isEditing) {
+            onSave(pillar, newScore);
+        }
+    }
+    
+    const scoreOptions = [
+        { value: 0, label: '0%', color: 'bg-gray-600' },
+        { value: 25, label: '25%', color: 'bg-red-600' },
+        { value: 50, label: '50%', color: 'bg-yellow-600' },
+        { value: 75, label: '75%', color: 'bg-blue-600' },
+        { value: 100, label: '100%', color: 'bg-green-600' },
+    ];
+
+    const currentScore = calculatePillarScore(pillarScore.responses);
+
+    return (
+        <div>
+            <div className="flex justify-between items-start mb-6">
+                <div>
+                    <h3 className="text-2xl font-bold" style={{color: PILLAR_DATA[pillar].color}}>{PILLAR_DATA[pillar].name}</h3>
+                    <p className="text-gray-400">{PILLAR_DATA[pillar].description}</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-sm text-gray-400">Pontuação Atual</p>
+                    <p className="text-4xl font-bold" style={{color: PILLAR_DATA[pillar].color}}>{currentScore}</p>
+                </div>
+            </div>
+
+            <div className="space-y-6">
+                {PILLAR_QUESTIONS[pillar].map((question, index) => (
+                    <div key={index} className="bg-gray-900/50 p-4 rounded-lg">
+                        <p className="mb-3 text-gray-300">{index + 1}. {question}</p>
+                        <div className="flex gap-2 flex-wrap">
+                            {scoreOptions.map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => handleResponseChange(index, opt.value)}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-transform transform hover:scale-110 ${pillarScore.responses[index] === opt.value ? `${opt.color} text-white shadow-lg` : 'bg-gray-700 text-gray-300'}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                     <div className="mt-8">
-                        <h4 className="font-semibold mb-2">Notas e Observações</h4>
-                         <textarea
-                            value={pillarScore.notes}
-                            onChange={(e) => handleNotesChange(e.target.value)}
-                            rows={3}
-                            className="w-full px-3 py-2 text-white bg-gray-900/50 border border-gray-600 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            placeholder="Adicione insights, pontos de melhoria, ou próximos passos..."
-                        />
+                ))}
+            </div>
+
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="bg-gray-900/50 p-4 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">Meta para este Pilar (%)</label>
+                    <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={pillarScore.goal}
+                        onChange={(e) => handleGoalChange(parseInt(e.target.value, 10))}
+                        className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-md"
+                    />
+                </div>
+                 <div className="bg-gray-900/50 p-4 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">Notas e Observações</label>
+                    <textarea
+                        value={pillarScore.notes}
+                        onChange={(e) => handleNotesChange(e.target.value)}
+                        placeholder="Principais pontos, desafios e oportunidades..."
+                        rows={3}
+                        className="w-full px-3 py-2 text-white bg-gray-700 border border-gray-600 rounded-md"
+                    />
+                </div>
+            </div>
+            {!isEditing && (
+                 <div className="mt-8 text-right">
+                    <button onClick={() => onSave(pillar, pillarScore)} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">
+                        Salvar Pilar
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AddDeliverableModal: React.FC<{
+    onClose: () => void;
+    onSave: (name: string, description: string, content: string) => void;
+}> = ({ onClose, onSave }) => {
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [content, setContent] = useState('');
+
+    const handleSubmit = () => {
+        if (name.trim() && content.trim()) {
+            onSave(name, description, content);
+            onClose();
+        } else {
+            alert('Nome e Conteúdo são obrigatórios.');
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col border border-indigo-700/50">
+                <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
+                    <h2 className="text-xl font-bold">Adicionar Entregável</h2>
+                    <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+                </header>
+                <main className="p-6 flex-1 overflow-y-auto space-y-4">
+                    <div>
+                        <label htmlFor="del-name" className="block text-sm font-medium text-gray-300 mb-1">Nome do Documento</label>
+                        <input id="del-name" type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"/>
+                    </div>
+                     <div>
+                        <label htmlFor="del-desc" className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
+                        <input id="del-desc" type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"/>
+                    </div>
+                     <div>
+                        <label htmlFor="del-content" className="block text-sm font-medium text-gray-300 mb-1">Conteúdo (Markdown)</label>
+                        <textarea id="del-content" value={content} onChange={e => setContent(e.target.value)} rows={15} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                         <p className="text-xs text-gray-500 mt-1">Use # para títulos, - para listas, e **texto** para negrito.</p>
                     </div>
                 </main>
-                 <footer className="flex justify-between items-center p-4 border-t border-indigo-800/50">
-                    <div className="flex items-center gap-4">
-                       <span className="text-sm font-medium">Pontuação do Pilar:</span>
-                       <span className="text-2xl font-bold" style={{color: PILLAR_DATA[pillar].color}}>{currentPillarOverall} / 100</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
-                        <button onClick={handleSave} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Alterações</button>
-                    </div>
+                <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                    <button type="button" onClick={handleSubmit} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Entregável</button>
                 </footer>
             </div>
         </div>
     );
 };
 
-const QuestionSlider: React.FC<{ question: string, value: number, onChange: (value: number) => void }> = ({ question, value, onChange }) => {
-    const levels = [
-        { value: 0, label: 'Inexistente', color: 'bg-red-800' },
-        { value: 25, label: 'Iniciante', color: 'bg-orange-700' },
-        { value: 50, label: 'Intermediário', color: 'bg-yellow-600' },
-        { value: 75, label: 'Avançado', color: 'bg-blue-600' },
-        { value: 100, label: 'Maduro', color: 'bg-green-600' },
-    ];
-    const activeLevel = levels.find(l => l.value === value) || levels[0];
-
-    return (
-        <div className="bg-gray-900/50 p-4 rounded-lg">
-            <p className="text-sm text-gray-300 mb-3">{question}</p>
-            <div className="flex items-center gap-4">
-                <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="25"
-                    value={value}
-                    onChange={(e) => onChange(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                />
-                <span className={`px-2 py-1 text-xs font-bold text-white rounded-md w-28 text-center ${activeLevel.color}`}>
-                    {activeLevel.label}
-                </span>
-            </div>
-        </div>
-    );
-}
 
 export default Dashboard;

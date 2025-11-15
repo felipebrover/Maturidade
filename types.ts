@@ -40,6 +40,8 @@ export interface KanbanCard {
   assignee: string;
   dueDate: string; // ISO string
   status: KanbanCardStatus;
+  actionId?: string; // Link to Action
+  journeyId?: string; // For coloring
 }
 
 export interface WeeklyPlan {
@@ -74,14 +76,76 @@ export interface ClientInfoSectionData {
 
 export type ClientInfoData = Record<ClientInfoSectionId, ClientInfoSectionData>;
 
+export interface ChatMessage {
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp: string;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  tone: string;
+  size: string;
+  orientation: string;
+  sourceIds: string[];
+}
+
+export interface Action {
+  id: string;
+  name: string;
+  isCompleted: boolean;
+  isInKanban: boolean;
+}
+
+export interface Initiative {
+  id: string;
+  name: string;
+  actions: Action[];
+}
+
+export interface KeyResult {
+  id: string;
+  name: string;
+  progress: number; // 0-100
+  initiatives: Initiative[];
+}
+
+export interface Objective {
+  id: string;
+  name: string;
+  keyResults: KeyResult[];
+}
+
+export interface Journey {
+  id: string;
+  name: string;
+  color: string;
+  objectives: Objective[];
+}
+
 export interface Client {
   id: string;
   name: string;
+  logoUrl?: string;
   onboardingDate: string;
   assessments: Assessment[];
   deliverables: Deliverable[];
   weeklyPlans: WeeklyPlan[];
   clientInfo: ClientInfoData;
+  chatSessions: ChatSession[];
+  diagnosticSummary?: string;
+  journeys: Journey[];
 }
 
-export type View = 'dashboard' | 'evolution' | 'clientInfo' | 'timeline' | 'meeting' | 'library' | 'planning';
+export type View = 'dashboard' | 'evolution' | 'clientInfo' | 'timeline' | 'meeting' | 'library' | 'planning' | 'chatbot' | 'settings';
+
+export interface User {
+  id: string;
+  username: string;
+  password: string; // In a real app, this would be a hash
+  role: 'admin' | 'client';
+  clientId?: string; // Only if role is 'client'
+  accessibleViews?: View[];
+}

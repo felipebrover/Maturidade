@@ -178,7 +178,7 @@ const Dashboard: React.FC = () => {
     return (
         <div className="flex h-screen bg-gray-900 text-gray-200">
             <Sidebar currentView={currentView} setCurrentView={setCurrentView} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen}/>
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col">
                 <Header setSidebarOpen={setSidebarOpen} />
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gradient-to-br from-gray-900 via-indigo-950 to-gray-900 p-4 sm:p-6 lg:p-8 print-bg-white print-text-black">
                    <PrintHeader />
@@ -378,7 +378,7 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
 
 
     return (
-        <header className="no-print flex-shrink-0 bg-gray-900/80 backdrop-blur-sm border-b border-indigo-800/30 flex items-center justify-between p-4">
+        <header className="no-print relative z-10 flex-shrink-0 bg-gray-900/80 backdrop-blur-sm border-b border-indigo-800/30 flex items-center justify-between p-4">
             <div className="flex items-center gap-2">
                 <button onClick={() => setSidebarOpen(true)} className="md:hidden text-gray-400 hover:text-white">
                     <Menu size={24} />
@@ -390,7 +390,7 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
                         <ChevronsUpDown className="h-4 w-4 text-gray-400" />
                     </button>
                     {isDropdownOpen && (
-                        <div className="absolute mt-2 w-72 bg-gray-800 border border-indigo-700/50 rounded-lg shadow-xl z-10">
+                        <div className="absolute mt-2 w-72 bg-gray-800 border border-indigo-700/50 rounded-lg shadow-xl z-50">
                             <div className="p-2 border-b border-indigo-700/50">
                                 <input
                                     type="text"

@@ -525,5 +525,61 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
         chatSessions: [],
         // FIX: Added missing 'journeys' property to satisfy the Client type.
         journeys: [],
+    },
+    {
+        id: 'client-paggpix',
+        name: 'Paggpix',
+        logoUrl: '',
+        onboardingDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(),
+        assessments: [
+            {
+                id: 'assessment-paggpix-1',
+                date: new Date().toISOString(),
+                scores: {
+                    [Pillar.STRATEGY]: { responses: [100, 0, 0, 50, 50, 100, 0, 100, 50, 75], goal: 80, notes: '' },
+                    [Pillar.GOALS]: { responses: [100, 100, 75, 100, 100, 100, 100, 100, 100, 75], goal: 80, notes: '' },
+                    [Pillar.CHANNELS]: { responses: [0, 100, 100, 0, 0, 0, 25, 0, 50, 100], goal: 80, notes: '' },
+                    [Pillar.PROCESS]: { responses: [0, 0, 0, 50, 100, 75, 25, 50, 50, 100], goal: 80, notes: '' },
+                    [Pillar.METRICS]: { responses: [0, 100, 100, 0, 100, 0, 0, 50, 100, 100], goal: 80, notes: '' },
+                    [Pillar.COMPENSATION]: { responses: [100, 100, 0, 100, 100, 50, 0, 0, 100, 100], goal: 80, notes: '' },
+                    [Pillar.SYSTEMS]: { responses: [100, 100, 0, 0, 100, 0, 0, 50, 100, 100], goal: 80, notes: '' },
+                },
+                overallMaturity: 58,
+            },
+        ],
+        deliverables: [],
+        weeklyPlans: [],
+        clientInfo: JSON.parse(JSON.stringify(DEFAULT_CLIENT_INFO)),
+        chatSessions: [],
+        diagnosticSummary: '',
+        journeys: [],
+    },
+    {
+        id: 'client-bs-seguros',
+        name: 'BS Seguros',
+        logoUrl: '',
+        onboardingDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
+        assessments: [
+            {
+                id: 'assessment-bs-seguros-1',
+                date: new Date().toISOString(),
+                scores: {
+                    [Pillar.STRATEGY]: { responses: [100, 100, 75, 25, 0, 0, 100, 100, 100, 75], goal: 80, notes: '' },
+                    [Pillar.GOALS]: { responses: [100, 100, 100, 100, 100, 50, 100, 100, 100, 100], goal: 80, notes: '' },
+                    [Pillar.CHANNELS]: { responses: [100, 100, 100, 25, 100, 100, 75, 100, 100, 100], goal: 80, notes: '' },
+                    [Pillar.PROCESS]: { responses: [0, 0, 0, 0, 0, 0, 100, 100, 100, 100], goal: 80, notes: '' },
+                    [Pillar.METRICS]: { responses: [100, 75, 100, 25, 100, 100, 100, 100, 100, 100], goal: 80, notes: '' },
+                    [Pillar.COMPENSATION]: { responses: [100, 100, 0, 100, 0, 50, 100, 25, 100, 100], goal: 80, notes: '' },
+                    [Pillar.SYSTEMS]: { responses: [100, 100, 100, 100, 100, 100, 75, 0, 0, 100], goal: 80, notes: '' },
+                },
+                overallMaturity: 77,
+            },
+        ],
+        deliverables: [],
+        weeklyPlans: [],
+        clientInfo: JSON.parse(JSON.stringify(DEFAULT_CLIENT_INFO)),
+        chatSessions: [],
+        diagnosticSummary: '',
+        journeys: [],
     }
 ];

@@ -79,15 +79,44 @@ const App: React.FC = () => {
 
     useEffect(() => {
         try {
-            const storedClients = localStorage.getItem('commercialos_clients');
-            if (storedClients) {
-                // Backward compatibility: add journeys if not present
-                const parsedClients = JSON.parse(storedClients).map((c: Client) => ({...c, journeys: c.journeys || []}));
-                setClients(parsedClients);
+            // --- NEW CLIENTS LOADING LOGIC ---
+            const storedClientsJSON = localStorage.getItem('commercialos_clients');
+            let finalClients: Client[] = [];
+
+            const defaultClientsMap = new Map(DUMMY_CLIENTS_DATA.map(c => [c.id, c]));
+
+            if (storedClientsJSON) {
+                // Fix: Add type assertion to JSON.parse to prevent 'any' type propagation,
+                // which can lead to errors like spreading a non-object type.
+                const storedClients: Client[] = JSON.parse(storedClientsJSON);
+                const storedClientsMap = new Map(storedClients.map((c: Client) => [c.id, c]));
+
+                const allClientIds = new Set([...defaultClientsMap.keys(), ...storedClientsMap.keys()]);
+                
+                allClientIds.forEach(id => {
+                    // Stored client data takes precedence over default data
+                    const clientData = storedClientsMap.get(id) || defaultClientsMap.get(id);
+                    if (clientData) {
+                        finalClients.push({ ...clientData });
+                    }
+                });
             } else {
-                setClients(DUMMY_CLIENTS_DATA.map(c => ({...c, journeys: c.journeys || []})));
-                localStorage.setItem('commercialos_clients', JSON.stringify(DUMMY_CLIENTS_DATA));
+                // No stored data, use default data
+                finalClients = [...DUMMY_CLIENTS_DATA];
             }
+
+            // Ensure data integrity and deep copies for all clients
+            finalClients = finalClients.map(client => ({
+                ...client,
+                journeys: client.journeys || [],
+                // Deep copy clientInfo to avoid reference issues, especially for new default clients
+                clientInfo: JSON.parse(JSON.stringify(client.clientInfo || DEFAULT_CLIENT_INFO))
+            }));
+            
+            setClients(finalClients);
+            localStorage.setItem('commercialos_clients', JSON.stringify(finalClients));
+            // --- END NEW CLIENTS LOADING LOGIC ---
+
 
             const storedUsers = localStorage.getItem('commercialos_users');
              if (storedUsers) {
@@ -103,16 +132,24 @@ const App: React.FC = () => {
             }
             
             const storedActiveClient = localStorage.getItem('commercialos_activeClient');
-            if(storedActiveClient) {
+            if(storedActiveClient && finalClients.some(c => c.id === storedActiveClient)) {
                 setActiveClientId(storedActiveClient);
-            } else if (DUMMY_CLIENTS_DATA.length > 0) {
-                setActiveClientId(DUMMY_CLIENTS_DATA[0].id);
+            } else if (finalClients.length > 0) {
+                setActiveClientId(finalClients[0].id);
             }
 
         } catch (error) {
             console.error("Failed to initialize from localStorage", error);
-            setClients(DUMMY_CLIENTS_DATA.map(c => ({...c, journeys: c.journeys || []})));
+            // Fallback to default data
+            const defaultClients = DUMMY_CLIENTS_DATA.map(c => ({
+                ...c, 
+                journeys: c.journeys || [], 
+                clientInfo: JSON.parse(JSON.stringify(c.clientInfo || DEFAULT_CLIENT_INFO))
+            }));
+            setClients(defaultClients);
+            localStorage.setItem('commercialos_clients', JSON.stringify(defaultClients));
             setUsers(INITIAL_USERS);
+            localStorage.setItem('commercialos_users', JSON.stringify(INITIAL_USERS));
         }
         setIsInitialized(true);
     }, []);

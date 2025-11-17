@@ -1,4 +1,4 @@
-import { Pillar, ClientInfoData, ClientInfoSectionId, Client, User, View } from './types';
+import { Pillar, ClientInfoData, ClientInfoSectionId, Client, User, View, Journey, WeeklyPlan } from './types';
 import type { Icon } from 'lucide-react';
 
 // We can't import lucide-react here as it's a value, so we'll pass them as props.
@@ -226,6 +226,105 @@ export const INITIAL_USERS: User[] = [
     },
 ];
 
+// --- ÍNTEGRO DATA ---
+
+const integroJourneys: Journey[] = [
+    {
+        id: 'j-integro-1',
+        name: "Planejamento Trimestral Íntegro (Nov/24 - Jan/25)",
+        color: '#8b5cf6', // Violet
+        objectives: [
+            {
+                id: 'o-integro-1',
+                name: "O1 – Bater 2.000 placas até 31/01",
+                keyResults: [
+                    { id: 'k-integro-1-1', name: "Atingir 23-28 novos leads/dia por vendedor (Realista)", progress: 0, initiatives: [
+                        {
+                            id: 'i-integro-1-1', name: "Acelerar Geração de Leads", actions: [
+                                { id: 'a-integro-1', name: "Ativar IA para SDR/BDR", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-2', name: "Rodar campanha de Tráfego Pago (Novembro)", isCompleted: false, isInKanban: false },
+                                { id: 'a-integro-3', name: "Rodar campanha de Tráfego Pago (Dezembro)", isCompleted: false, isInKanban: false },
+                                { id: 'a-integro-4', name: "Rodar campanha de Tráfego Pago (Janeiro)", isCompleted: false, isInKanban: false },
+                            ]
+                        },
+                        {
+                            id: 'i-integro-1-2', name: "Otimizar Processo de Vendas", actions: [
+                                { id: 'a-integro-5', name: "Implementar rituais diários e semanais de OKR", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-6', name: "Realizar auditoria de CRM 2x/dia", isCompleted: false, isInKanban: false },
+                            ]
+                        },
+                    ] },
+                    { id: 'k-integro-1-2', name: "Realizar 80-120 Follow-ups/dia (Realista)", progress: 0, initiatives: [] },
+                    { id: 'k-inteгро-1-3', name: "Gerar 10-12 Indicações/semana (Realista)", progress: 0, initiatives: [] },
+                    { id: 'k-integro-1-4', name: "Realizar 4-5 Reativações/semana (Realista)", progress: 0, initiatives: [] },
+                    { id: 'k-integro-1-5', name: "Realizar 1 prospecção ativa com orçamento/dia (Realista)", progress: 0, initiatives: [] },
+                    { id: 'k-integro-1-6', name: "Manter conversão semanal em 14,7% (Realista)", progress: 0, initiatives: [] },
+                ],
+            },
+            {
+                id: 'o-integro-2',
+                name: "O2 — Garantir disciplina operacional e previsibilidade",
+                keyResults: [
+                     { id: 'k-integro-2-1', name: "Implementar ritual diário (15’) e semanal (45’)", progress: 0, initiatives: [
+                        {
+                            id: 'i-integro-2-1', name: "Implementar Rituais de Gestão", actions: [
+                                { id: 'a-integro-7', name: "Estruturar e iniciar ritual diário (daily)", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-8', name: "Estruturar e iniciar ritual semanal", isCompleted: false, isInKanban: true },
+                            ]
+                        },
+                     ] },
+                     { id: 'k-integro-2-2', name: "Acompanhar KPIs diariamente", progress: 0, initiatives: [] },
+                     { id: 'k-integro-2-3', name: "Manter SLA de resposta ≤ 5 min", progress: 0, initiatives: [] },
+                     { id: 'k-integro-2-4', name: "Realizar auditoria do CRM 2x/dia", progress: 0, initiatives: [
+                        {
+                            id: 'i-integro-2-2', name: "Garantir Qualidade de Dados no CRM", actions: [
+                                { id: 'a-integro-9', name: "Definir processo de auditoria do CRM", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-10', name: "Executar auditorias diárias do CRM", isCompleted: false, isInKanban: true },
+                            ]
+                        },
+                     ] },
+                     { id: 'k-integro-2-5', name: "Gerar relatório quinzenal de conversão", progress: 0, initiatives: [] },
+                     { id: 'k-integro-2-6', name: "Garantir operação no cenário realista diariamente", progress: 0, initiatives: [] },
+                ],
+            },
+            {
+                id: 'o-integro-3',
+                name: "O3 — Garantir demanda contínua, nutrição e aumento de LTV",
+                keyResults: [
+                    { id: 'k-integro-3-1', name: "Manter CPL ≤ R$ 8,00", progress: 0, initiatives: [
+                        {
+                            id: 'i-integro-3-1', name: "Estruturar Marketing Digital", actions: [
+                                { id: 'a-integro-11', name: "Configurar RD Station Marketing", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-12', name: "Criar 2 novos criativos para campanha", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-13', name: "Criar públicos Lookalike e Retargeting", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-14', name: "Desenvolver painel de métricas de marketing", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-20', name: "Criar 3 novos criativos para teste A/B", isCompleted: false, isInKanban: true },
+                            ]
+                        },
+                    ] },
+                    { id: 'k-integro-3-2', name: "Implementar 4 fluxos automatizados de nutrição", progress: 0, initiatives: [
+                        {
+                            id: 'i-integro-3-2', name: "Implementar Nutrição e Retenção", actions: [
+                                { id: 'a-integro-15', name: "Configurar fluxo de nutrição inicial", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-16', name: "Configurar 2 fluxos no RD Station (Semana 2)", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-17', name: "Configurar 2 fluxos no RD Station (Semana 3)", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-18', name: "Planejar reimpacto da base para Janeiro", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-19', name: "Criar conteúdo social de autoridade", isCompleted: false, isInKanban: true },
+                                { id: 'a-integro-21', name: "Realizar primeira reativação quinzenal via RD Station", isCompleted: false, isInKanban: true },
+                            ]
+                        },
+                    ] },
+                    { id: 'k-integro-3-3', name: "Testar 2 criativos novos por semana (A/B)", progress: 0, initiatives: [] },
+                    { id: 'k-integro-3-4', name: "Realizar reativação quinzenal via RD Station", progress: 0, initiatives: [] },
+                    { id: 'k-integro-3-5', name: "Aumentar % de leads de canais não pagos", progress: 0, initiatives: [] },
+                    { id: 'k-integro-3-6', name: "Criar públicos Lookalike + Retarget", progress: 0, initiatives: [] },
+                    { id: 'k-integro-3-7', name: "Criar painel de CAC, CPL, ROI e LTV", progress: 0, initiatives: [] },
+                ],
+            },
+        ]
+    }
+];
+
 export const DUMMY_CLIENTS_DATA: Client[] = [
     {
         id: 'client-integro',
@@ -235,7 +334,7 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
         assessments: [
             {
                 id: 'assessment-integro-1',
-                date: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString(),
+                date: new Date(new Date().setDate(new Date().getDate() - 14)).toISOString(),
                 scores: {
                     [Pillar.STRATEGY]: { responses: [0, 0, 0, 0, 0, 25, 0, 0, 0, 0], goal: 80, notes: 'Falta de estratégia e direcionamento claros.' },
                     [Pillar.GOALS]: { responses: [0, 0, 0, 25, 50, 50, 0, 25, 100, 50], goal: 80, notes: 'Metas existem, mas não são bem planejadas ou desdobradas.' },
@@ -249,7 +348,7 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
             },
             {
                 id: 'assessment-integro-2',
-                date: new Date().toISOString(),
+                date: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString(),
                 scores: {
                     [Pillar.STRATEGY]: { responses: [0, 100, 0, 0, 0, 25, 0, 0, 0, 0], goal: 80, notes: 'Progresso com a definição do ICP.' },
                     [Pillar.GOALS]: { responses: [0, 0, 0, 25, 50, 50, 0, 25, 100, 50], goal: 80, notes: 'Metas existem, mas não são bem planejadas ou desdobradas.' },
@@ -260,6 +359,20 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
                     [Pillar.SYSTEMS]: { responses: [25, 0, 0, 100, 100, 25, 0, 0, 0, 0], goal: 80, notes: 'Sistemas e dados desorganizados.' },
                 },
                 overallMaturity: 16,
+            },
+            {
+                id: 'assessment-integro-3',
+                date: new Date().toISOString(),
+                scores: {
+                    [Pillar.STRATEGY]: { responses: [0, 100, 0, 0, 0, 25, 0, 0, 0, 0], goal: 80, notes: 'Estratégia consolidada com ICP e Playbook.' },
+                    [Pillar.GOALS]: { responses: [50, 50, 25, 50, 50, 50, 25, 25, 50, 25], goal: 80, notes: 'Prévia do Planejamento Trimestral apresentada, definindo metas e rituais.' },
+                    [Pillar.CHANNELS]: { responses: [50, 50, 0, 0, 25, 0, 0, 0, 50, 25], goal: 80, notes: 'Playbook definiu processos claros, scripts e cadências para os canais.' },
+                    [Pillar.PROCESS]: { responses: [100, 50, 50, 50, 50, 50, 50, 0, 0, 0], goal: 80, notes: 'Playbook de Vendas completo entregue, formalizando e padronizando processos.' },
+                    [Pillar.METRICS]: { responses: [0, 0, 0, 0, 0, 0, 0, 25, 0, 0], goal: 80, notes: 'Ainda sem avanço significativo, aguardando implementação do CRM.' },
+                    [Pillar.COMPENSATION]: { responses: [0, 0, 0, 100, 0, 0, 0, 0, 50, 25], goal: 80, notes: 'Estrutura de remuneração e desenvolvimento de liderança incipiente.' },
+                    [Pillar.SYSTEMS]: { responses: [25, 50, 50, 100, 100, 25, 0, 0, 0, 0], goal: 80, notes: 'Implementação parcial do CRM iniciada, funil customizado.' },
+                },
+                overallMaturity: 24,
             },
         ],
         deliverables: [],
@@ -314,8 +427,7 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
             },
         },
         chatSessions: [],
-        // FIX: Added missing 'journeys' property to satisfy the Client type.
-        journeys: [],
+        journeys: integroJourneys,
     },
     {
         id: 'client-cj',
@@ -336,6 +448,20 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
                     [Pillar.SYSTEMS]: { responses: [100, 0, 0, 100, 100, 100, 0, 25, 0, 50], goal: 80, notes: '' },
                 },
                 overallMaturity: 41,
+            },
+            {
+                id: 'assessment-cj-2',
+                date: new Date().toISOString(),
+                scores: {
+                    [Pillar.STRATEGY]: { responses: [100, 100, 25, 75, 50, 50, 100, 75, 0, 0], goal: 80, notes: 'ICP completo forneceu clareza estratégica, mas o conhecimento ainda precisa ser disseminado para o time.' },
+                    [Pillar.GOALS]: { responses: [100, 100, 0, 75, 50, 0, 100, 100, 0, 0], goal: 80, notes: 'Início da preparação para o planejamento trimestral.' },
+                    [Pillar.CHANNELS]: { responses: [0, 25, 100, 100, 0, 0, 0, 50, 0, 50], goal: 80, notes: '' },
+                    [Pillar.PROCESS]: { responses: [25, 25, 0, 75, 0, 25, 100, 0, 0, 100], goal: 80, notes: 'Estrutura inicial do Playbook de Vendas criada, formalizando processos empíricos.' },
+                    [Pillar.METRICS]: { responses: [25, 25, 25, 0, 100, 25, 0, 100, 0, 100], goal: 80, notes: '' },
+                    [Pillar.COMPENSATION]: { responses: [0, 0, 0, 100, 0, 75, 100, 0, 100, 100], goal: 80, notes: '' },
+                    [Pillar.SYSTEMS]: { responses: [100, 0, 0, 100, 100, 100, 0, 25, 0, 50], goal: 80, notes: '' },
+                },
+                overallMaturity: 45,
             }
         ],
         deliverables: [],

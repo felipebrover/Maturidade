@@ -22,6 +22,45 @@ const ICON_MAP: Record<Pillar, React.ElementType> = {
     [Pillar.SYSTEMS]: Database
 };
 
+const ConfirmationModal: React.FC<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onClose: () => void;
+    confirmText?: string;
+    cancelText?: string;
+}> = ({ title, message, onConfirm, onClose, confirmText = "Confirmar", cancelText = "Cancelar" }) => {
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-red-700/50">
+                <header className="flex items-center gap-4 p-4 border-b border-red-800/50">
+                    <div className="w-12 h-12 rounded-full bg-red-900/50 flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">{title}</h2>
+                    </div>
+                </header>
+                <main className="p-6">
+                    <p className="text-sm text-gray-300">{message}</p>
+                </main>
+                <footer className="flex justify-end items-center p-4 border-t border-red-800/50 gap-4">
+                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">
+                        {cancelText}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md"
+                    >
+                        {confirmText}
+                    </button>
+                </footer>
+            </div>
+        </div>
+    );
+};
+
 const PrintHeader: React.FC = () => {
     const { activeClient } = useData();
     if (!activeClient) return null;
@@ -52,104 +91,30 @@ const Dashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
     const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-    // State for the new "Editing Cart" feature
-    const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
-    const [stagedScores, setStagedScores] = useState<PillarScores | null>(null);
-    const [changedPillars, setChangedPillars] = useState<Record<string, boolean>>({});
-    
-    // State for the pillar details modal opened from the dashboard
-    const [modalPillar, setModalPillar] = useState<Pillar | null>(null);
+    // State for the assessment being edited
+    const [assessmentToEdit, setAssessmentToEdit] = useState<{assessment: Assessment, initialPillar?: Pillar} | null>(null);
 
     // State for the new assessment creation modal
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
 
-
     const handleStartEditing = (assessment: Assessment) => {
         if (currentUser?.role !== 'admin') return;
-        setEditingAssessment(assessment);
-        // Deep copy scores to avoid mutating original state
-        setStagedScores(JSON.parse(JSON.stringify(assessment.scores)));
-        setChangedPillars({});
+        setAssessmentToEdit({ assessment });
     };
-    
-    const handleStartEditingFromDashboard = (pillar: Pillar) => {
+
+    const handleEditPillarOfLatestAssessment = (pillar: Pillar) => {
         if (!activeClient || activeClient.assessments.length === 0 || currentUser?.role !== 'admin') return;
         const latestAssessment = activeClient.assessments[activeClient.assessments.length - 1];
-        handleStartEditing(latestAssessment); // Sets editingAssessment and stagedScores
-        setModalPillar(pillar); // Opens the modal
-    };
-
-
-    const handleSavePillarChanges = (pillar: Pillar, newPillarScore: PillarScore) => {
-        setStagedScores(prevScores => {
-            if (!prevScores) return null;
-            return { ...prevScores, [pillar]: newPillarScore };
-        });
-        setChangedPillars(prev => ({ ...prev, [pillar]: true }));
-    };
-    
-    const handleSavePillarToCart = (pillar: Pillar, newPillarScore: PillarScore) => {
-        handleSavePillarChanges(pillar, newPillarScore);
-        setModalPillar(null);
-    };
-
-    const handleCreateAssessmentFromCart = () => {
-        if (!activeClient || !stagedScores || !editingAssessment) return;
-
-        // CRITICAL BUG FIX: Ensure staged scores are correctly applied.
-        // 1. Start with a deep copy of the original assessment's scores.
-        const newScores: PillarScores = JSON.parse(JSON.stringify(editingAssessment.scores));
-        
-        // 2. Iterate over the keys of changedPillars (which are the pillar IDs that were modified).
-        Object.keys(changedPillars).forEach(pillarId => {
-            const pillarKey = pillarId as Pillar;
-            // 3. Overwrite the score in our new object with the corresponding value from stagedScores.
-            if (stagedScores[pillarKey]) {
-                newScores[pillarKey] = stagedScores[pillarKey];
-            }
-        });
-
-        // 4. Call addAssessment with the correctly constructed newScores object.
-        addAssessment(activeClient.id, newScores);
-
-        // Reset editing state
-        setEditingAssessment(null);
-        setStagedScores(null);
-        setChangedPillars({});
-        setCurrentView('timeline');
-    };
-    
-    const handleUpdateAssessmentFromCart = () => {
-        if (!activeClient || !stagedScores || !editingAssessment) return;
-
-        const newScores: PillarScores = JSON.parse(JSON.stringify(editingAssessment.scores));
-        Object.keys(changedPillars).forEach(pillarId => {
-            const pillarKey = pillarId as Pillar;
-            if (stagedScores[pillarKey]) {
-                newScores[pillarKey] = stagedScores[pillarKey];
-            }
-        });
-
-        updateAssessment(activeClient.id, editingAssessment.id, newScores);
-
-        // Reset editing state
-        setEditingAssessment(null);
-        setStagedScores(null);
-        setChangedPillars({});
-    };
-
-
-    const handleCancelEditing = () => {
-        setEditingAssessment(null);
-        setStagedScores(null);
-        setChangedPillars({});
+        setAssessmentToEdit({ assessment: latestAssessment, initialPillar: pillar });
     };
 
     const handleOpenCreateModal = () => {
         if (currentUser?.role !== 'admin') return;
         setCreateModalOpen(true);
     };
+
     const handleCloseCreateModal = () => setCreateModalOpen(false);
+
     const handleCreateNewAssessment = (scores: PillarScores) => {
         if (activeClient) {
             addAssessment(activeClient.id, scores);
@@ -157,7 +122,6 @@ const Dashboard: React.FC = () => {
             setCurrentView('timeline');
         }
     };
-
 
     if (!activeClient && currentUser?.role === 'admin') {
         return <div className="p-8">Selecione ou crie um cliente para começar.</div>
@@ -174,7 +138,7 @@ const Dashboard: React.FC = () => {
 
     const renderView = () => {
         switch (currentView) {
-            case 'dashboard': return <DashboardHome onPillarClick={handleStartEditingFromDashboard} onNewAssessmentClick={handleOpenCreateModal} />;
+            case 'dashboard': return <DashboardHome onPillarClick={handleEditPillarOfLatestAssessment} onNewAssessmentClick={handleOpenCreateModal} />;
             case 'evolution': return <EvolutionView />;
             case 'clientInfo': return <ClientInfoView />;
             case 'timeline': return <TimelineView onStartEditing={handleStartEditing} onNewAssessmentClick={handleOpenCreateModal} />;
@@ -183,7 +147,7 @@ const Dashboard: React.FC = () => {
             case 'planning': return <PlanningView />;
             case 'chatbot': return <ChatbotView />;
             case 'settings': return currentUser?.role === 'admin' ? <SettingsView /> : <DashboardHome onPillarClick={() => {}} onNewAssessmentClick={() => {}} />;
-            default: return <DashboardHome onPillarClick={handleStartEditingFromDashboard} onNewAssessmentClick={handleOpenCreateModal} />;
+            default: return <DashboardHome onPillarClick={handleEditPillarOfLatestAssessment} onNewAssessmentClick={handleOpenCreateModal} />;
         }
     };
     
@@ -198,14 +162,6 @@ const Dashboard: React.FC = () => {
                     {renderView()}
                    </div>
                 </main>
-                {currentUser?.role === 'admin' && (
-                    <EditingCartBar
-                        changedPillarsCount={Object.keys(changedPillars).length}
-                        onCreateAssessment={handleCreateAssessmentFromCart}
-                        onUpdateAssessment={handleUpdateAssessmentFromCart}
-                        onCancel={handleCancelEditing}
-                    />
-                )}
             </div>
             {isCreateModalOpen && (
                 <CreateAssessmentModal 
@@ -214,20 +170,12 @@ const Dashboard: React.FC = () => {
                     initialAssessment={latestAssessment} 
                 />
             )}
-            {editingAssessment && stagedScores && (
+            {assessmentToEdit && (
                 <EditAssessmentModal 
-                    assessment={editingAssessment} 
-                    editedScores={stagedScores}
-                    onSavePillar={handleSavePillarChanges}
-                    onClose={handleCancelEditing} 
-                />
-            )}
-            {modalPillar && stagedScores && (
-                <PillarDetailsModal 
-                    pillar={modalPillar} 
-                    initialPillarScore={stagedScores[modalPillar]}
-                    onSaveToCart={handleSavePillarToCart}
-                    onClose={() => setModalPillar(null)}
+                    key={assessmentToEdit.assessment.id}
+                    assessment={assessmentToEdit.assessment}
+                    initialPillar={assessmentToEdit.initialPillar}
+                    onClose={() => setAssessmentToEdit(null)} 
                 />
             )}
         </div>
@@ -1016,7 +964,8 @@ const EvolutionView: React.FC = () => {
 
 // Timeline View
 const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void; onNewAssessmentClick: () => void; }> = ({ onStartEditing, onNewAssessmentClick }) => {
-    const { activeClient, currentUser } = useData();
+    const { activeClient, currentUser, deleteAssessment } = useData();
+    const [assessmentToDelete, setAssessmentToDelete] = useState<Assessment | null>(null);
 
     if (!activeClient || activeClient.assessments.length === 0) {
         return (
@@ -1036,6 +985,14 @@ const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void;
             </div>
         );
     }
+    
+    const handleConfirmDelete = () => {
+        if (activeClient && assessmentToDelete) {
+            deleteAssessment(activeClient.id, assessmentToDelete.id);
+            setAssessmentToDelete(null);
+        }
+    };
+
     // sort assessments from newest to oldest
     const sortedAssessments = [...activeClient.assessments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -1063,14 +1020,24 @@ const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void;
                         assessment={assessment} 
                         isLatest={index === 0} 
                         onEdit={() => onStartEditing(assessment)}
+                        onDelete={() => setAssessmentToDelete(assessment)}
                     />
                 ))}
             </div>
+            {assessmentToDelete && (
+                <ConfirmationModal
+                    title="Confirmar Exclusão de Avaliação"
+                    message={`Tem certeza de que deseja excluir a avaliação de ${formatDate(assessmentToDelete.date)}? Esta ação não pode ser desfeita.`}
+                    onConfirm={handleConfirmDelete}
+                    onClose={() => setAssessmentToDelete(null)}
+                    confirmText="Excluir Avaliação"
+                />
+            )}
         </div>
     );
 };
 
-const AssessmentCard: React.FC<{ assessment: Assessment; isLatest: boolean; onEdit: () => void; }> = ({ assessment, isLatest, onEdit }) => {
+const AssessmentCard: React.FC<{ assessment: Assessment; isLatest: boolean; onEdit: () => void; onDelete: () => void; }> = ({ assessment, isLatest, onEdit, onDelete }) => {
     const [isExpanded, setIsExpanded] = useState(isLatest); // Expand latest by default
     const { currentUser } = useData();
     return (
@@ -1086,11 +1053,16 @@ const AssessmentCard: React.FC<{ assessment: Assessment; isLatest: boolean; onEd
                         {isLatest && <span className="text-xs font-semibold bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full">Mais Recente</span>}
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
                     {currentUser?.role === 'admin' && (
-                        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
-                            <Edit className="w-5 h-5 text-gray-400" />
-                        </button>
+                        <>
+                            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
+                                <Edit className="w-5 h-5 text-gray-400" />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-2 rounded-full hover:bg-red-900/50 transition-colors">
+                                <Trash2 className="w-5 h-5 text-red-400" />
+                            </button>
+                        </>
                     )}
                     <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
@@ -1407,6 +1379,7 @@ const ResourceLibraryView: React.FC = () => {
     const { activeClient, addDeliverable, deleteDeliverable, currentUser } = useData();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [viewingDeliverable, setViewingDeliverable] = useState<Deliverable | null>(null);
+    const [deletingDeliverable, setDeletingDeliverable] = useState<Deliverable | null>(null);
 
     const handleSaveDeliverable = (name: string, description: string, content: string) => {
         if(activeClient) {
@@ -1414,9 +1387,10 @@ const ResourceLibraryView: React.FC = () => {
         }
     };
     
-    const handleDelete = (id: string) => {
-        if (activeClient && window.confirm('Tem certeza que deseja excluir este entregável?')) {
-            deleteDeliverable(activeClient.id, id);
+    const handleConfirmDelete = () => {
+        if (activeClient && deletingDeliverable) {
+            deleteDeliverable(activeClient.id, deletingDeliverable.id);
+            setDeletingDeliverable(null);
         }
     }
 
@@ -1453,7 +1427,7 @@ const ResourceLibraryView: React.FC = () => {
                             <DeliverableCard 
                                 key={deliverable.id} 
                                 deliverable={deliverable} 
-                                onDelete={() => handleDelete(deliverable.id)} 
+                                onDelete={() => setDeletingDeliverable(deliverable)} 
                                 onView={() => setViewingDeliverable(deliverable)}
                             />
                         ))}
@@ -1470,6 +1444,15 @@ const ResourceLibraryView: React.FC = () => {
                 <DeliverableViewerModal
                     deliverable={viewingDeliverable}
                     onClose={() => setViewingDeliverable(null)}
+                />
+            )}
+            {deletingDeliverable && (
+                <ConfirmationModal
+                    title="Confirmar Exclusão"
+                    message={`Tem certeza que deseja excluir o entregável "${deletingDeliverable.name}"? Esta ação não pode ser desfeita.`}
+                    onConfirm={handleConfirmDelete}
+                    onClose={() => setDeletingDeliverable(null)}
+                    confirmText="Excluir"
                 />
             )}
         </>
@@ -1660,7 +1643,9 @@ const ClientInfoSection: React.FC<{ sectionId: ClientInfoSectionId }> = ({ secti
                                 </div>
                                 <input
                                     type="file"
-                                    ref={el => fileInputRefs.current[q.id] = el}
+                                    // Fix: The ref callback function must not return a value.
+                                    // An arrow function with a body in braces implicitly returns undefined.
+                                    ref={el => { fileInputRefs.current[q.id] = el; }}
                                     onChange={(e) => handleAttachmentUpload(e, q.id)}
                                     className="hidden"
                                 />
@@ -1862,9 +1847,18 @@ const JourneyItem: React.FC<{ journey: Journey }> = ({ journey }) => {
 
 const KanbanBoardView: React.FC = () => {
     const { activeClient, addWeeklyPlan, deleteWeeklyPlan, currentUser } = useData();
+    const [planToDelete, setPlanToDelete] = useState<WeeklyPlan | null>(null);
+
     if (!activeClient) return null;
 
     const sortedPlans = (activeClient.weeklyPlans || []).slice().sort((a, b) => b.weekNumber - a.weekNumber);
+
+    const handleConfirmDeletePlan = () => {
+        if (activeClient && planToDelete) {
+            deleteWeeklyPlan(activeClient.id, planToDelete.id);
+            setPlanToDelete(null);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -1894,14 +1888,19 @@ const KanbanBoardView: React.FC = () => {
                         <WeeklyPlanCard 
                             key={plan.id} 
                             plan={plan} 
-                            onDelete={() => {
-                                if(window.confirm(`Tem certeza que deseja excluir a Semana ${plan.weekNumber}?`)) {
-                                    deleteWeeklyPlan(activeClient.id, plan.id)
-                                }
-                            }} 
+                            onDelete={() => setPlanToDelete(plan)} 
                         />
                     ))}
                 </div>
+            )}
+            {planToDelete && (
+                <ConfirmationModal
+                    title="Confirmar Exclusão"
+                    message={`Tem certeza que deseja excluir a Semana ${planToDelete.weekNumber}? Todas as tarefas associadas serão perdidas.`}
+                    onConfirm={handleConfirmDeletePlan}
+                    onClose={() => setPlanToDelete(null)}
+                    confirmText="Excluir Semana"
+                />
             )}
         </div>
     );
@@ -2103,33 +2102,50 @@ const AddKanbanCardModal: React.FC<{ planId: string; card: KanbanCard | null; in
 
 const KanbanCardItem: React.FC<{ card: KanbanCard, planId: string, onEdit: () => void; }> = ({ card, planId, onEdit }) => {
     const { currentUser, activeClient, deleteKanbanCard } = useData();
+    const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
     if (!activeClient) return null;
     
     const journey = card.journeyId ? activeClient.journeys.find(j => j.id === card.journeyId) : null;
     const borderColor = journey ? journey.color : 'border-gray-700';
 
+    const handleConfirmDelete = () => {
+        deleteKanbanCard(activeClient.id, planId, card.id);
+        setIsConfirmingDelete(false);
+    };
+
     return (
-        <div className={`bg-gray-800 p-3 rounded-lg border-l-4 group cursor-pointer`} style={{ borderColor }}>
-            <div className="flex justify-between items-start">
-                <p className="font-semibold text-white text-sm pr-2">{card.title}</p>
-                 {currentUser?.role === 'admin' && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <button onClick={onEdit} className="p-1 hover:bg-gray-700 rounded-md"><Pencil size={12} /></button>
-                        <button onClick={() => { if(window.confirm("Excluir tarefa?")) deleteKanbanCard(activeClient.id, planId, card.id)}} className="p-1 hover:bg-gray-700 rounded-md"><Trash2 size={12} /></button>
-                    </div>
-                 )}
-            </div>
-            <p className="text-gray-400 text-xs mt-1">{card.description || "Sem descrição."}</p>
-            {card.actionId && (
-                <div className="mt-2">
-                    <span className="flex items-center gap-1 text-xs text-indigo-400 bg-indigo-900/50 w-fit px-2 py-0.5 rounded-full">
-                        <Target size={12} />
-                        Meta Vinculada
-                    </span>
+        <>
+            <div className={`bg-gray-800 p-3 rounded-lg border-l-4 group cursor-pointer`} style={{ borderColor }}>
+                <div className="flex justify-between items-start">
+                    <p className="font-semibold text-white text-sm pr-2">{card.title}</p>
+                    {currentUser?.role === 'admin' && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                            <button onClick={onEdit} className="p-1 hover:bg-gray-700 rounded-md"><Pencil size={12} /></button>
+                            <button onClick={() => setIsConfirmingDelete(true)} className="p-1 hover:bg-gray-700 rounded-md"><Trash2 size={12} /></button>
+                        </div>
+                    )}
                 </div>
+                <p className="text-gray-400 text-xs mt-1">{card.description || "Sem descrição."}</p>
+                {card.actionId && (
+                    <div className="mt-2">
+                        <span className="flex items-center gap-1 text-xs text-indigo-400 bg-indigo-900/50 w-fit px-2 py-0.5 rounded-full">
+                            <Target size={12} />
+                            Meta Vinculada
+                        </span>
+                    </div>
+                )}
+            </div>
+            {isConfirmingDelete && (
+                <ConfirmationModal
+                    title="Confirmar Exclusão"
+                    message={`Tem certeza que deseja excluir a tarefa "${card.title}"?`}
+                    onConfirm={handleConfirmDelete}
+                    onClose={() => setIsConfirmingDelete(false)}
+                    confirmText="Excluir Tarefa"
+                />
             )}
-        </div>
+        </>
     );
 }
 
@@ -2379,36 +2395,6 @@ const ChatConfigPanel: React.FC<{session: ChatSession}> = ({session}) => {
 
 
 // Editing and Modal Components
-const EditingCartBar: React.FC<{
-    changedPillarsCount: number;
-    onCreateAssessment: () => void;
-    onUpdateAssessment: () => void;
-    onCancel: () => void;
-}> = ({ changedPillarsCount, onCreateAssessment, onUpdateAssessment, onCancel }) => {
-    if (changedPillarsCount === 0) return null;
-
-    return (
-        <div className="no-print fixed bottom-4 right-4 z-40 bg-indigo-700 text-white rounded-lg shadow-2xl flex items-center gap-4 p-3 animate-slide-up">
-            <div className="flex items-center gap-2">
-                <Package className="w-6 h-6"/>
-                <span className="font-semibold">{changedPillarsCount} {changedPillarsCount > 1 ? 'pilares alterados' : 'pilar alterado'}</span>
-            </div>
-            <div className="w-px h-8 bg-indigo-500"></div>
-            <div className="flex items-center gap-2">
-                 <button onClick={onCreateAssessment} className="px-3 py-1.5 text-sm font-semibold bg-green-500 hover:bg-green-600 rounded-md">Salvar como Nova Avaliação</button>
-                 <button onClick={onUpdateAssessment} className="px-3 py-1.5 text-sm font-semibold bg-yellow-500 hover:bg-yellow-600 rounded-md">Atualizar Avaliação Existente</button>
-                 <button onClick={onCancel} className="p-2 rounded-full hover:bg-white/10" title="Cancelar Alterações">
-                    <X size={20}/>
-                 </button>
-            </div>
-            <style>{`
-                .animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
-                @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            `}</style>
-        </div>
-    );
-};
-
 const CreateAssessmentModal: React.FC<{
     onClose: () => void;
     onCreate: (scores: PillarScores) => void;
@@ -2469,14 +2455,26 @@ const CreateAssessmentModal: React.FC<{
 
 const EditAssessmentModal: React.FC<{
     assessment: Assessment;
-    editedScores: PillarScores;
-    onSavePillar: (pillar: Pillar, newScore: PillarScore) => void;
+    initialPillar?: Pillar;
     onClose: () => void;
-}> = ({ assessment, editedScores, onSavePillar, onClose }) => {
-    const [activePillar, setActivePillar] = useState<Pillar>(PILLARS[0]);
+}> = ({ assessment, initialPillar, onClose }) => {
+    const { activeClient, updateAssessment } = useData();
+    const [editedScores, setEditedScores] = useState<PillarScores>(() => JSON.parse(JSON.stringify(assessment.scores)));
+    const [activePillar, setActivePillar] = useState<Pillar>(initialPillar || PILLARS[0]);
+
+    const handlePillarChange = (pillar: Pillar, newScore: PillarScore) => {
+        setEditedScores(prev => ({ ...prev, [pillar]: newScore }));
+    };
+
+    const handleSaveChanges = () => {
+        if (activeClient) {
+            updateAssessment(activeClient.id, assessment.id, editedScores);
+            onClose();
+        }
+    };
 
     return (
-         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
             <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-indigo-700/50">
                 <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
                     <h2 className="text-2xl font-bold">Editando Avaliação de {formatDate(assessment.date)}</h2>
@@ -2485,9 +2483,9 @@ const EditAssessmentModal: React.FC<{
                 <div className="flex-1 flex overflow-hidden">
                     <aside className="w-1/4 max-w-xs p-4 border-r border-indigo-800/50 overflow-y-auto">
                         <nav className="space-y-2">
-                             {PILLARS.map(p => (
+                            {PILLARS.map(p => (
                                 <button key={p} onClick={() => setActivePillar(p)} className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${activePillar === p ? 'bg-indigo-600 text-white' : 'hover:bg-gray-700'}`}>
-                                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: PILLAR_DATA[p].color}}></div>
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: PILLAR_DATA[p].color }}></div>
                                     {PILLAR_DATA[p].name}
                                 </button>
                             ))}
@@ -2498,84 +2496,49 @@ const EditAssessmentModal: React.FC<{
                             key={activePillar}
                             pillar={activePillar}
                             initialScore={editedScores[activePillar]}
-                            onSave={onSavePillar}
-                            isEditing
+                            onSave={handlePillarChange}
                         />
                     </main>
                 </div>
-                 <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
-                     <p className="text-sm text-gray-400 mr-auto">As alterações são salvas automaticamente no "carrinho de edição".</p>
-                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Fechar</button>
+                <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                    <button onClick={handleSaveChanges} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Alterações</button>
                 </footer>
             </div>
         </div>
     );
 };
 
-const PillarDetailsModal: React.FC<{
-    pillar: Pillar;
-    initialPillarScore: PillarScore;
-    onSaveToCart: (pillar: Pillar, newScore: PillarScore) => void;
-    onClose: () => void;
-}> = ({ pillar, initialPillarScore, onSaveToCart, onClose }) => {
-    
-    return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-indigo-700/50">
-                <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                    <h2 className="text-2xl font-bold">Editar Pilar: <span style={{color: PILLAR_DATA[pillar].color}}>{PILLAR_DATA[pillar].name}</span></h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={24} /></button>
-                </header>
-                <main className="flex-1 overflow-y-auto p-6">
-                     <PillarAssessmentForm
-                        pillar={pillar}
-                        initialScore={initialPillarScore}
-                        onSave={(p, newScore) => onSaveToCart(p, newScore)} // onSave here is actually onSaveToCart
-                        isEditing
-                    />
-                </main>
-                 <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
-                     <p className="text-sm text-gray-400 mr-auto">As alterações são salvas automaticamente no "carrinho de edição".</p>
-                    <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Fechar</button>
-                </footer>
-            </div>
-        </div>
-    );
-}
-
 const PillarAssessmentForm: React.FC<{
     pillar: Pillar,
     initialScore: PillarScore,
-    onSave: (pillar: Pillar, newScore: PillarScore) => void,
-    isEditing?: boolean
-}> = ({ pillar, initialScore, onSave, isEditing = false }) => {
+    onSave: (pillar: Pillar, newScore: PillarScore) => void
+}> = ({ pillar, initialScore, onSave }) => {
     const [pillarScore, setPillarScore] = useState<PillarScore>(initialScore);
+
+    // UseEffect to sync parent changes to local state, but only when the pillar changes
+    useEffect(() => {
+        setPillarScore(initialScore);
+    }, [initialScore]);
+
+    const handleLocalChange = (newScore: PillarScore) => {
+        setPillarScore(newScore);
+        onSave(pillar, newScore);
+    };
 
     const handleResponseChange = (questionIndex: number, value: number) => {
         const newResponses = [...pillarScore.responses];
         newResponses[questionIndex] = value;
-        const newScore = { ...pillarScore, responses: newResponses };
-        setPillarScore(newScore);
-        if(isEditing) {
-            onSave(pillar, newScore);
-        }
+        handleLocalChange({ ...pillarScore, responses: newResponses });
     };
-    
+
     const handleGoalChange = (value: number) => {
-        const newScore = { ...pillarScore, goal: value };
-        setPillarScore(newScore);
-        if (isEditing) {
-            onSave(pillar, newScore);
-        }
-    }
-    
+        handleLocalChange({ ...pillarScore, goal: value });
+    };
+
     const handleNotesChange = (value: string) => {
-        const newScore = { ...pillarScore, notes: value };
-        setPillarScore(newScore);
-         if (isEditing) {
-            onSave(pillar, newScore);
-        }
-    }
+        handleLocalChange({ ...pillarScore, notes: value });
+    };
     
     const scoreOptions = [
         { value: 0, label: '0%', color: 'bg-gray-600' },
@@ -2642,13 +2605,6 @@ const PillarAssessmentForm: React.FC<{
                     />
                 </div>
             </div>
-            {!isEditing && (
-                 <div className="mt-8 text-right">
-                    <button onClick={() => onSave(pillar, pillarScore)} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">
-                        Salvar Pilar
-                    </button>
-                </div>
-            )}
         </div>
     );
 };

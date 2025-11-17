@@ -1,13 +1,53 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../App';
 import { User, View } from '../types';
-import { Plus, X, Edit, Trash2, Shield, Building, User as UserIcon, CheckSquare, Square } from 'lucide-react';
+import { Plus, X, Edit, Trash2, Shield, Building, User as UserIcon, CheckSquare, Square, AlertTriangle } from 'lucide-react';
 import { CLIENT_ACCESSIBLE_VIEWS } from '../constants';
+
+const ConfirmationModal: React.FC<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onClose: () => void;
+    confirmText?: string;
+    cancelText?: string;
+}> = ({ title, message, onConfirm, onClose, confirmText = "Confirmar", cancelText = "Cancelar" }) => {
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-red-700/50">
+                <header className="flex items-center gap-4 p-4 border-b border-red-800/50">
+                    <div className="w-12 h-12 rounded-full bg-red-900/50 flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-white">{title}</h2>
+                    </div>
+                </header>
+                <main className="p-6">
+                    <p className="text-sm text-gray-300">{message}</p>
+                </main>
+                <footer className="flex justify-end items-center p-4 border-t border-red-800/50 gap-4">
+                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">
+                        {cancelText}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-md"
+                    >
+                        {confirmText}
+                    </button>
+                </footer>
+            </div>
+        </div>
+    );
+};
 
 const SettingsView: React.FC = () => {
     const { users, clients, addUser, updateUser, deleteUser, currentUser } = useData();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
     const openAddModal = () => {
         setEditingUser(null);
@@ -19,13 +59,18 @@ const SettingsView: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleDeleteUser = (userId: string) => {
-        if (userId === currentUser?.id) {
+    const handleDeleteClick = (user: User) => {
+        if (user.id === currentUser?.id) {
             alert("Você não pode excluir a si mesmo.");
             return;
         }
-        if (window.confirm("Tem certeza que deseja excluir este usuário?")) {
-            deleteUser(userId);
+        setUserToDelete(user);
+    };
+    
+    const handleConfirmDelete = () => {
+        if (userToDelete) {
+            deleteUser(userToDelete.id);
+            setUserToDelete(null);
         }
     };
 
@@ -90,7 +135,7 @@ const SettingsView: React.FC = () => {
                                 <td className="px-6 py-4">{getClientName(user.clientId)}</td>
                                 <td className="px-6 py-4 text-right">
                                     <button onClick={() => openEditModal(user)} className="p-2 text-gray-400 hover:text-white"><Edit size={16} /></button>
-                                    <button onClick={() => handleDeleteUser(user.id)} className="p-2 text-gray-400 hover:text-red-400"><Trash2 size={16} /></button>
+                                    <button onClick={() => handleDeleteClick(user)} className="p-2 text-gray-400 hover:text-red-400"><Trash2 size={16} /></button>
                                 </td>
                             </tr>
                         ))}
@@ -102,6 +147,15 @@ const SettingsView: React.FC = () => {
                 <UserModal
                     user={editingUser}
                     onClose={closeModal}
+                />
+            )}
+            {userToDelete && (
+                <ConfirmationModal
+                    title="Confirmar Exclusão de Usuário"
+                    message={`Tem certeza que deseja excluir o usuário "${userToDelete.username}"? Esta ação é permanente.`}
+                    onConfirm={handleConfirmDelete}
+                    onClose={() => setUserToDelete(null)}
+                    confirmText="Excluir Usuário"
                 />
             )}
         </div>

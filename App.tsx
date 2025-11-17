@@ -16,6 +16,7 @@ interface DataContextType {
     setActiveClientId: (id: string | null) => void;
     addAssessment: (clientId: string, scores: PillarScores) => void;
     updateAssessment: (clientId: string, assessmentId: string, scores: PillarScores) => void;
+    deleteAssessment: (clientId: string, assessmentId: string) => void;
     addClient: (name: string) => void;
     updateClient: (clientId: string, data: Partial<Client>) => void;
     deleteClient: (clientId: string) => void;
@@ -212,6 +213,19 @@ const App: React.FC = () => {
                     }
                     return assessment;
                 });
+                return { ...client, assessments: updatedAssessments };
+            }
+            return client;
+        });
+        persistClients(updatedClients);
+    }, [clients, persistClients]);
+
+    const deleteAssessment = useCallback((clientId: string, assessmentId: string) => {
+        const updatedClients = clients.map(client => {
+            if (client.id === clientId) {
+                const updatedAssessments = client.assessments.filter(
+                    assessment => assessment.id !== assessmentId
+                );
                 return { ...client, assessments: updatedAssessments };
             }
             return client;
@@ -747,6 +761,7 @@ const App: React.FC = () => {
         setActiveClientId: persistActiveClient,
         addAssessment,
         updateAssessment,
+        deleteAssessment,
         addClient,
         updateClient,
         deleteClient,

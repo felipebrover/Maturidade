@@ -1,6 +1,6 @@
+
 import React, { useState } from 'react';
 import { useData } from '../App';
-import { BSLABS_LOGO_BASE64 } from '../constants';
 
 const Login: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -21,7 +21,7 @@ const Login: React.FC = () => {
             <div className="w-full max-w-md p-8 space-y-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-indigo-700/50">
                 <div className="text-center">
                     <div className="inline-block mb-4">
-                        <img src={BSLABS_LOGO_BASE64} alt="BSLabs Logo" className="w-40 h-auto" />
+                        <h1 className="text-4xl font-extrabold text-white tracking-tight">BSLabs</h1>
                     </div>
                     <p className="mt-2 text-gray-400">Plataforma de Maturidade Comercial B2B</p>
                 </div>
@@ -31,7 +31,7 @@ const Login: React.FC = () => {
                             htmlFor="username"
                             className="block text-sm font-medium text-gray-300"
                         >
-                            Usuário (padrão: admin)
+                            Usuário
                         </label>
                         <div className="mt-1">
                             <input
@@ -55,7 +55,7 @@ const Login: React.FC = () => {
                             htmlFor="password"
                             className="block text-sm font-medium text-gray-300"
                         >
-                            Senha (padrão: master)
+                            Senha
                         </label>
                         <div className="mt-1">
                             <input

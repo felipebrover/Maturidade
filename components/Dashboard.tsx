@@ -6,7 +6,7 @@ import {
     UploadCloud, Trash2, FileText, ClipboardCheck, User, Paperclip, File as FileIcon, Pencil, SendHorizonal, BrainCircuit, CheckSquare, Square, MessageSquarePlus, Settings, Grip, CircleDot, Milestone, ListChecks, DownloadCloud
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS, CLIENT_INFO_SECTIONS_ORDER, BSLABS_LOGO_BASE64, CONSULTING_JOURNEY_TEMPLATE } from '../constants';
+import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS, CLIENT_INFO_SECTIONS_ORDER, CONSULTING_JOURNEY_TEMPLATE } from '../constants';
 import { generateExecutiveSummary, generateChatResponseWithContext } from '../services/geminiService';
 import { formatDate, calculatePillarScore, calculateOverallMaturity, fileToDataUrl } from '../utils';
 import { Pillar, type PillarScore, type PillarScores, type View, type Assessment, type Deliverable, ClientInfoSectionId, ClientInfoQuestion, Attachment, Client, ChatMessage, ChatSession, Journey, Objective, KeyResult, Initiative, Action } from '../types';
@@ -70,8 +70,8 @@ const PrintHeader: React.FC = () => {
         <div className="print-header mb-8">
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                    <img src={BSLABS_LOGO_BASE64} alt="BSLabs Logo" className="h-12 w-auto" />
-                    <p className="text-lg">Relatório de Maturidade Comercial</p>
+                    <h1 className="text-2xl font-bold text-black">BSLabs</h1>
+                    <p className="text-lg text-gray-600">Relatório de Maturidade Comercial</p>
                 </div>
                 <div className="text-right text-sm">
                     <p className="font-bold text-lg">{activeClient.name}</p>
@@ -218,7 +218,7 @@ const Sidebar: React.FC<{ currentView: View, setCurrentView: (view: View) => voi
         <>
         <aside className={`no-print absolute z-30 md:relative w-64 h-full bg-gray-800/50 backdrop-blur-lg border-r border-indigo-800/30 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
             <div className="flex items-center justify-between p-4 border-b border-indigo-800/30">
-                 <img src={BSLABS_LOGO_BASE64} alt="BSLabs Logo" className="h-8 w-auto" />
+                 <span className="text-2xl font-extrabold text-white tracking-tight">BSLabs</span>
                 <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white">
                     <X size={24} />
                 </button>

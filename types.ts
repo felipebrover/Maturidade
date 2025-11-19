@@ -30,28 +30,6 @@ export interface Deliverable {
   content: string;
 }
 
-export type KanbanCardStatus = 'todo' | 'doing' | 'done';
-
-export interface KanbanCard {
-  id: string;
-  title: string;
-  goal: string;
-  description: string;
-  assignee: string;
-  dueDate: string; // ISO string
-  status: KanbanCardStatus;
-  actionId?: string; // Link to Action
-  journeyId?: string; // For coloring
-}
-
-export interface WeeklyPlan {
-    id:string;
-    weekNumber: number;
-    startDate: string; // ISO string
-    endDate: string; // ISO string
-    cards: KanbanCard[];
-}
-
 export interface Attachment {
   id: string;
   name: string;
@@ -96,12 +74,12 @@ export interface Action {
   id: string;
   name: string;
   isCompleted: boolean;
-  isInKanban: boolean;
 }
 
 export interface Initiative {
   id: string;
   name: string;
+  progress: number; // 0-100
   actions: Action[];
 }
 
@@ -115,6 +93,7 @@ export interface KeyResult {
 export interface Objective {
   id: string;
   name: string;
+  progress: number; // 0-100
   keyResults: KeyResult[];
 }
 
@@ -122,6 +101,7 @@ export interface Journey {
   id: string;
   name: string;
   color: string;
+  progress: number; // 0-100
   objectives: Objective[];
 }
 
@@ -132,7 +112,6 @@ export interface Client {
   onboardingDate: string;
   assessments: Assessment[];
   deliverables: Deliverable[];
-  weeklyPlans: WeeklyPlan[];
   clientInfo: ClientInfoData;
   chatSessions: ChatSession[];
   diagnosticSummary?: string;

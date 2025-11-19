@@ -1,5 +1,6 @@
+
 import React, { useState, useCallback, useEffect, createContext, useContext, useMemo } from 'react';
-import type { Client, PillarScores, Assessment, Deliverable, WeeklyPlan, KanbanCard, ClientInfoSectionId, ClientInfoQuestion, Attachment, ChatSession, User, Journey, Objective, KeyResult, Initiative, Action, KanbanCardStatus } from './types';
+import type { Client, PillarScores, Assessment, Deliverable, ClientInfoSectionId, ClientInfoQuestion, Attachment, ChatSession, User, Journey, Objective, KeyResult, Initiative, Action } from './types';
 import { calculateOverallMaturity, fileToBase64 } from './utils';
 import { DUMMY_CLIENTS_DATA, PILLARS, INITIAL_PILLAR_SCORE, DEFAULT_CLIENT_INFO, CLIENT_INFO_SECTIONS_ORDER, INITIAL_USERS } from './constants';
 import Login from './components/Login';
@@ -23,11 +24,6 @@ interface DataContextType {
     activeClient: Client | null;
     addDeliverable: (clientId: string, name: string, description: string, content: string) => void;
     deleteDeliverable: (clientId: string, deliverableId: string) => void;
-    addWeeklyPlan: (clientId: string) => void;
-    deleteWeeklyPlan: (clientId: string, planId: string) => void;
-    addKanbanCard: (clientId: string, planId: string, cardData: Omit<KanbanCard, 'id' | 'status'>, status: KanbanCardStatus) => void;
-    updateKanbanCard: (clientId: string, planId: string, cardId: string, updatedData: Partial<KanbanCard>) => void;
-    deleteKanbanCard: (clientId: string, planId: string, cardId: string) => void;
     updateClientInfoAnswer: (clientId: string, sectionId: ClientInfoSectionId, questionId: string, answer: string) => void;
     addClientInfoQuestion: (clientId: string, sectionId: ClientInfoSectionId, question: string) => void;
     deleteClientInfoQuestion: (clientId: string, sectionId: ClientInfoSectionId, questionId: string) => void;
@@ -42,20 +38,20 @@ interface DataContextType {
     deleteUser: (userId: string) => void;
     // Journeys
     addJourney: (clientId: string, name: string) => void;
+    importJourney: (clientId: string, journeyTemplate: Journey) => void;
     updateJourney: (clientId: string, journeyId: string, name: string, color: string) => void;
     deleteJourney: (clientId: string, journeyId: string) => void;
     addObjective: (clientId: string, journeyId: string, name: string) => void;
     updateObjective: (clientId: string, journeyId: string, objectiveId: string, name: string) => void;
     deleteObjective: (clientId: string, journeyId: string, objectiveId: string) => void;
     addKeyResult: (clientId: string, journeyId: string, objectiveId: string, name: string) => void;
-    updateKeyResult: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, name: string, progress: number) => void;
+    updateKeyResult: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, name: string) => void;
     deleteKeyResult: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string) => void;
     addInitiative: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, name: string) => void;
     updateInitiative: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, name: string) => void;
     deleteInitiative: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string) => void;
     addAction: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, name: string) => void;
-    updateAction: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string, name: string) => void;
-    toggleActionComplete: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string) => void;
+    updateAction: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string, name: string, isCompleted: boolean) => void;
     deleteAction: (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string) => void;
 }
 
@@ -80,7 +76,7 @@ const App: React.FC = () => {
     useEffect(() => {
         try {
             // --- NEW CLIENTS LOADING LOGIC ---
-            const storedClientsJSON = localStorage.getItem('commercialos_clients');
+            const storedClientsJSON = localStorage.getItem('bslabs_clients');
             let finalClients: Client[] = [];
 
             const defaultClientsMap = new Map(DUMMY_CLIENTS_DATA.map(c => [c.id, c]));
@@ -114,24 +110,24 @@ const App: React.FC = () => {
             }));
             
             setClients(finalClients);
-            localStorage.setItem('commercialos_clients', JSON.stringify(finalClients));
+            localStorage.setItem('bslabs_clients', JSON.stringify(finalClients));
             // --- END NEW CLIENTS LOADING LOGIC ---
 
 
-            const storedUsers = localStorage.getItem('commercialos_users');
+            const storedUsers = localStorage.getItem('bslabs_users');
              if (storedUsers) {
                 setUsers(JSON.parse(storedUsers));
             } else {
                 setUsers(INITIAL_USERS);
-                localStorage.setItem('commercialos_users', JSON.stringify(INITIAL_USERS));
+                localStorage.setItem('bslabs_users', JSON.stringify(INITIAL_USERS));
             }
 
-            const storedSessionUser = localStorage.getItem('commercialos_currentUser');
+            const storedSessionUser = localStorage.getItem('bslabs_currentUser');
             if (storedSessionUser) {
                 setCurrentUser(JSON.parse(storedSessionUser));
             }
             
-            const storedActiveClient = localStorage.getItem('commercialos_activeClient');
+            const storedActiveClient = localStorage.getItem('bslabs_activeClient');
             if(storedActiveClient && finalClients.some(c => c.id === storedActiveClient)) {
                 setActiveClientId(storedActiveClient);
             } else if (finalClients.length > 0) {
@@ -147,38 +143,38 @@ const App: React.FC = () => {
                 clientInfo: JSON.parse(JSON.stringify(c.clientInfo || DEFAULT_CLIENT_INFO))
             }));
             setClients(defaultClients);
-            localStorage.setItem('commercialos_clients', JSON.stringify(defaultClients));
+            localStorage.setItem('bslabs_clients', JSON.stringify(defaultClients));
             setUsers(INITIAL_USERS);
-            localStorage.setItem('commercialos_users', JSON.stringify(INITIAL_USERS));
+            localStorage.setItem('bslabs_users', JSON.stringify(INITIAL_USERS));
         }
         setIsInitialized(true);
     }, []);
 
     const persistClients = useCallback((updatedClients: Client[]) => {
         setClients(updatedClients);
-        localStorage.setItem('commercialos_clients', JSON.stringify(updatedClients));
+        localStorage.setItem('bslabs_clients', JSON.stringify(updatedClients));
     }, []);
 
     const persistUsers = useCallback((updatedUsers: User[]) => {
         setUsers(updatedUsers);
-        localStorage.setItem('commercialos_users', JSON.stringify(updatedUsers));
+        localStorage.setItem('bslabs_users', JSON.stringify(updatedUsers));
     }, []);
     
     const persistActiveClient = useCallback((id: string | null) => {
         setActiveClientId(id);
         if (id) {
-            localStorage.setItem('commercialos_activeClient', id);
+            localStorage.setItem('bslabs_activeClient', id);
         } else {
-            localStorage.removeItem('commercialos_activeClient');
+            localStorage.removeItem('bslabs_activeClient');
         }
     }, []);
 
     const persistCurrentUser = useCallback((user: User | null) => {
         setCurrentUser(user);
         if (user) {
-            localStorage.setItem('commercialos_currentUser', JSON.stringify(user));
+            localStorage.setItem('bslabs_currentUser', JSON.stringify(user));
         } else {
-            localStorage.removeItem('commercialos_currentUser');
+            localStorage.removeItem('bslabs_currentUser');
         }
     }, []);
 
@@ -279,7 +275,6 @@ const App: React.FC = () => {
             onboardingDate: new Date().toISOString(),
             assessments: [],
             deliverables: [],
-            weeklyPlans: [],
             clientInfo: JSON.parse(JSON.stringify(DEFAULT_CLIENT_INFO)),
             chatSessions: [],
             diagnosticSummary: '',
@@ -341,166 +336,63 @@ const App: React.FC = () => {
         persistClients(updatedClients);
     }, [clients, persistClients]);
     
-    // Weekly Plan Functions
-    const addWeeklyPlan = useCallback((clientId: string) => {
-        const updatedClients = clients.map(client => {
-            if (client.id === clientId) {
-                const plans = client.weeklyPlans || [];
-                const lastPlan = plans[plans.length - 1];
-                
-                const nextMonday = new Date();
-                nextMonday.setDate(nextMonday.getDate() + (1 + 7 - nextMonday.getDay()) % 7);
-                if (nextMonday.getDay() !== 1) nextMonday.setDate(nextMonday.getDate() + 7);
-                nextMonday.setHours(0, 0, 0, 0);
-
-                const startDate = lastPlan ? new Date(new Date(lastPlan.endDate).getTime() + 24 * 60 * 60 * 1000) : nextMonday;
-                const endDate = new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
-
-                const newPlan: WeeklyPlan = {
-                    id: `wplan-${new Date().getTime()}`,
-                    weekNumber: plans.length + 1,
-                    startDate: startDate.toISOString(),
-                    endDate: endDate.toISOString(),
-                    cards: [],
-                };
-                return { ...client, weeklyPlans: [...plans, newPlan] };
-            }
-            return client;
-        });
-        persistClients(updatedClients);
-    }, [clients, persistClients]);
-
-    const deleteWeeklyPlan = useCallback((clientId: string, planId: string) => {
-        const updatedClients = clients.map(client => {
-            if (client.id === clientId) {
-                const updatedPlans = (client.weeklyPlans || []).filter(p => p.id !== planId)
-                    .map((p, index) => ({ ...p, weekNumber: index + 1 })); // Re-number weeks
-                return { ...client, weeklyPlans: updatedPlans };
-            }
-            return client;
-        });
-        persistClients(updatedClients);
-    }, [clients, persistClients]);
-
-    const addKanbanCard = useCallback((clientId: string, planId: string, cardData: Omit<KanbanCard, 'id' | 'status'>, status: KanbanCardStatus = 'todo') => {
-        let finalClients = clients;
-        if (cardData.actionId) {
-            finalClients = finalClients.map(c => {
-                if (c.id === clientId) {
-                    const journeys = c.journeys.map(j => ({
-                        ...j,
-                        objectives: j.objectives.map(o => ({
-                            ...o,
-                            keyResults: o.keyResults.map(k => ({
-                                ...k,
-                                initiatives: k.initiatives.map(i => ({
-                                    ...i,
-                                    actions: i.actions.map(a => a.id === cardData.actionId ? { ...a, isInKanban: true } : a)
-                                }))
-                            }))
-                        }))
-                    }));
-                    return { ...c, journeys };
-                }
-                return c;
+    const recalculateProgressForClient = (client: Client): Client => {
+        const newClient = JSON.parse(JSON.stringify(client));
+        newClient.journeys.forEach((j: Journey) => {
+            let totalObjectiveProgress = 0;
+            j.objectives.forEach((o: Objective) => {
+                let totalKeyResultProgress = 0;
+                o.keyResults.forEach((k: KeyResult) => {
+                    let totalInitiativeProgress = 0;
+                    k.initiatives.forEach((i: Initiative) => {
+                        const completedActions = i.actions.filter((a: Action) => a.isCompleted).length;
+                        i.progress = i.actions.length > 0 ? Math.round((completedActions / i.actions.length) * 100) : 0;
+                        totalInitiativeProgress += i.progress;
+                    });
+                    k.progress = k.initiatives.length > 0 ? Math.round(totalInitiativeProgress / k.initiatives.length) : 0;
+                    totalKeyResultProgress += k.progress;
+                });
+                o.progress = o.keyResults.length > 0 ? Math.round(totalKeyResultProgress / o.keyResults.length) : 0;
+                totalObjectiveProgress += o.progress;
             });
-        }
-
-        const updatedClients = finalClients.map(client => {
-            if (client.id === clientId) {
-                const updatedPlans = (client.weeklyPlans || []).map(plan => {
-                    if (plan.id === planId) {
-                        const newCard: KanbanCard = {
-                            ...cardData,
-                            id: `kcard-${new Date().getTime()}`,
-                            status: status,
-                        };
-                        return { ...plan, cards: [...plan.cards, newCard] };
-                    }
-                    return plan;
-                });
-                return { ...client, weeklyPlans: updatedPlans };
-            }
-            return client;
+            j.progress = j.objectives.length > 0 ? Math.round(totalObjectiveProgress / j.objectives.length) : 0;
         });
-        persistClients(updatedClients);
-    }, [clients, persistClients]);
+        return newClient;
+    };
 
-    const updateKanbanCard = useCallback((clientId: string, planId: string, cardId: string, updatedData: Partial<KanbanCard>) => {
-        const updatedClients = clients.map(client => {
-            if (client.id === clientId) {
-                const updatedPlans = (client.weeklyPlans || []).map(plan => {
-                    if (plan.id === planId) {
-                        const updatedCards = plan.cards.map(card => 
-                            card.id === cardId ? { ...card, ...updatedData } : card
-                        );
-                        return { ...plan, cards: updatedCards };
-                    }
-                    return plan;
-                });
-                return { ...client, weeklyPlans: updatedPlans };
-            }
-            return client;
-        });
-        persistClients(updatedClients);
-    }, [clients, persistClients]);
-
-    const deleteKanbanCard = useCallback((clientId: string, planId: string, cardId: string) => {
-        let cardToDelete: KanbanCard | undefined;
-        const client = clients.find(c => c.id === clientId);
-        if(client) {
-            const plan = client.weeklyPlans.find(p => p.id === planId);
-            if(plan) {
-                cardToDelete = plan.cards.find(c => c.id === cardId);
-            }
-        }
-        
-        let finalClients = clients;
-        if (cardToDelete?.actionId) {
-            finalClients = finalClients.map(c => {
-                 if (c.id === clientId) {
-                    const journeys = c.journeys.map(j => ({
-                        ...j,
-                        objectives: j.objectives.map(o => ({
-                            ...o,
-                            keyResults: o.keyResults.map(k => ({
-                                ...k,
-                                initiatives: k.initiatives.map(i => ({
-                                    ...i,
-                                    actions: i.actions.map(a => a.id === cardToDelete?.actionId ? { ...a, isInKanban: false } : a)
-                                }))
-                            }))
-                        }))
-                    }));
-                    return { ...c, journeys };
-                }
-                return c;
-            });
-        }
-
-        const updatedClients = finalClients.map(client => {
-            if (client.id === clientId) {
-                const updatedPlans = (client.weeklyPlans || []).map(plan => {
-                    if (plan.id === planId) {
-                        const updatedCards = plan.cards.filter(card => card.id !== cardId);
-                        return { ...plan, cards: updatedCards };
-                    }
-                    return plan;
-                });
-                return { ...client, weeklyPlans: updatedPlans };
-            }
-            return client;
-        });
-        persistClients(updatedClients);
-    }, [clients, persistClients]);
-
-    // GOALS / JOURNEYS CRUD
     const findAndMapClient = (clientId: string, callback: (client: Client) => Client) => {
-        persistClients(clients.map(c => c.id === clientId ? callback(c) : c));
+        const updatedClients = clients.map(c => c.id === clientId ? callback(c) : c);
+        const finalClients = updatedClients.map(c => c.id === clientId ? recalculateProgressForClient(c) : c);
+        persistClients(finalClients);
     };
 
     const addJourney = (clientId: string, name: string) => findAndMapClient(clientId, client => {
-        const newJourney: Journey = { id: `j-${Date.now()}`, name, color: '#4f46e5', objectives: [] };
+        const newJourney: Journey = { id: `j-${Date.now()}`, name, color: '#4f46e5', objectives: [], progress: 0 };
+        return { ...client, journeys: [...client.journeys, newJourney] };
+    });
+    
+    const importJourney = (clientId: string, journeyTemplate: Journey) => findAndMapClient(clientId, client => {
+        // Deep copy and regenerate IDs to avoid conflicts
+        const newJourney: Journey = {
+            ...JSON.parse(JSON.stringify(journeyTemplate)),
+            id: `j-imported-${Date.now()}`,
+            objectives: journeyTemplate.objectives.map(obj => ({
+                ...obj,
+                id: `o-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                keyResults: obj.keyResults.map(kr => ({
+                    ...kr,
+                    id: `kr-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    initiatives: kr.initiatives.map(init => ({
+                        ...init,
+                        id: `init-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                        actions: init.actions.map(act => ({
+                            ...act,
+                            id: `act-imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                        }))
+                    }))
+                }))
+            }))
+        };
         return { ...client, journeys: [...client.journeys, newJourney] };
     });
 
@@ -514,7 +406,7 @@ const App: React.FC = () => {
     }));
 
     const addObjective = (clientId: string, journeyId: string, name: string) => findAndMapClient(clientId, client => ({
-        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: [...j.objectives, { id: `o-${Date.now()}`, name, keyResults: [] }] } : j)
+        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: [...j.objectives, { id: `o-${Date.now()}`, name, keyResults: [], progress: 0 }] } : j)
     }));
 
     const updateObjective = (clientId: string, journeyId: string, objectiveId: string, name: string) => findAndMapClient(clientId, client => ({
@@ -529,8 +421,8 @@ const App: React.FC = () => {
         ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: [...o.keyResults, { id: `k-${Date.now()}`, name, progress: 0, initiatives: [] }] } : o) } : j)
     }));
 
-    const updateKeyResult = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, name: string, progress: number) => findAndMapClient(clientId, client => ({
-        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, name, progress } : k) } : o) } : j)
+    const updateKeyResult = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, name: string) => findAndMapClient(clientId, client => ({
+        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, name } : k) } : o) } : j)
     }));
 
     const deleteKeyResult = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string) => findAndMapClient(clientId, client => ({
@@ -538,7 +430,7 @@ const App: React.FC = () => {
     }));
 
     const addInitiative = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, name: string) => findAndMapClient(clientId, client => ({
-        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, initiatives: [...k.initiatives, { id: `i-${Date.now()}`, name, actions: [] }] } : k) } : o) } : j)
+        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, initiatives: [...k.initiatives, { id: `i-${Date.now()}`, name, actions: [], progress: 0 }] } : k) } : o) } : j)
     }));
 
     const updateInitiative = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, name: string) => findAndMapClient(clientId, client => ({
@@ -550,15 +442,11 @@ const App: React.FC = () => {
     }));
 
     const addAction = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, name: string) => findAndMapClient(clientId, client => ({
-        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, initiatives: k.initiatives.map(i => i.id === initiativeId ? { ...i, actions: [...i.actions, { id: `a-${Date.now()}`, name, isCompleted: false, isInKanban: false }] } : i) } : k) } : o) } : j)
+        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, initiatives: k.initiatives.map(i => i.id === initiativeId ? { ...i, actions: [...i.actions, { id: `a-${Date.now()}`, name, isCompleted: false }] } : i) } : k) } : o) } : j)
     }));
 
-    const updateAction = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string, name: string) => findAndMapClient(clientId, client => ({
-        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, initiatives: k.initiatives.map(i => i.id === initiativeId ? { ...i, actions: i.actions.map(a => a.id === actionId ? { ...a, name } : a) } : i) } : k) } : o) } : j)
-    }));
-
-    const toggleActionComplete = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string) => findAndMapClient(clientId, client => ({
-        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, initiatives: k.initiatives.map(i => i.id === initiativeId ? { ...i, actions: i.actions.map(a => a.id === actionId ? { ...a, isCompleted: !a.isCompleted } : a) } : i) } : k) } : o) } : j)
+    const updateAction = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string, name: string, isCompleted: boolean) => findAndMapClient(clientId, client => ({
+        ...client, journeys: client.journeys.map(j => j.id === journeyId ? { ...j, objectives: j.objectives.map(o => o.id === objectiveId ? { ...o, keyResults: o.keyResults.map(k => k.id === keyResultId ? { ...k, initiatives: k.initiatives.map(i => i.id === initiativeId ? { ...i, actions: i.actions.map(a => a.id === actionId ? { ...a, name, isCompleted } : a) } : i) } : k) } : o) } : j)
     }));
     
     const deleteAction = (clientId: string, journeyId: string, objectiveId: string, keyResultId: string, initiativeId: string, actionId: string) => findAndMapClient(clientId, client => ({
@@ -783,7 +671,6 @@ const App: React.FC = () => {
                 return { ...assessment, scores: validatedScores };
             }),
             deliverables: client.deliverables || [],
-            weeklyPlans: client.weeklyPlans || [],
             chatSessions: client.chatSessions || [],
         };
     }, [clients, activeClientId, currentUser, logout]);
@@ -805,11 +692,6 @@ const App: React.FC = () => {
         activeClient,
         addDeliverable,
         deleteDeliverable,
-        addWeeklyPlan,
-        deleteWeeklyPlan,
-        addKanbanCard,
-        updateKanbanCard,
-        deleteKanbanCard,
         updateClientInfoAnswer,
         addClientInfoQuestion,
         deleteClientInfoQuestion,
@@ -822,11 +704,11 @@ const App: React.FC = () => {
         addUser,
         updateUser,
         deleteUser,
-        addJourney, updateJourney, deleteJourney,
+        addJourney, importJourney, updateJourney, deleteJourney,
         addObjective, updateObjective, deleteObjective,
         addKeyResult, updateKeyResult, deleteKeyResult,
         addInitiative, updateInitiative, deleteInitiative,
-        addAction, updateAction, deleteAction, toggleActionComplete,
+        addAction, updateAction, deleteAction,
     };
 
     if (!isInitialized) {

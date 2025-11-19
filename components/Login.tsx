@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../App';
-import { Building2 } from 'lucide-react';
+import { BSLABS_LOGO_BASE64 } from '../constants';
 
 const Login: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -20,12 +20,9 @@ const Login: React.FC = () => {
         <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-blue-950 p-4">
             <div className="w-full max-w-md p-8 space-y-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-indigo-700/50">
                 <div className="text-center">
-                    <div className="inline-flex items-center justify-center p-3 bg-indigo-600 rounded-full mb-4">
-                        <Building2 className="w-8 h-8 text-white" />
+                    <div className="inline-block mb-4">
+                        <img src={BSLABS_LOGO_BASE64} alt="BSLabs Logo" className="w-40 h-auto" />
                     </div>
-                    <h1 className="text-4xl font-bold text-white tracking-tight">
-                        Commercial<span className="text-indigo-400">OS</span>
-                    </h1>
                     <p className="mt-2 text-gray-400">Plataforma de Maturidade Comercial B2B</p>
                 </div>
                 <form className="space-y-6" onSubmit={handleLogin}>
@@ -90,7 +87,7 @@ const Login: React.FC = () => {
                 </form>
             </div>
             <p className="mt-8 text-center text-sm text-gray-500">
-                &copy; {new Date().getFullYear()} CommercialOS. Todos os direitos reservados.
+                &copy; {new Date().getFullYear()} BSLabs. Todos os direitos reservados.
             </p>
         </div>
     );

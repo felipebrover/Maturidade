@@ -1,14 +1,15 @@
+
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useData } from '../App';
 import {
     LayoutDashboard, BarChart3, Clock, Briefcase, BotMessageSquare, Library, LogOut, Menu, X, Plus, ChevronsUpDown, Check, FileDown, Rocket, Target, Minus, AlertTriangle, Building, Package, Megaphone, Handshake, Users, SlidersHorizontal, Building2, Compass, Goal, Network, Workflow, BarChartBig, HandCoins, Database, Edit, ChevronDown, ChevronUp, Info, Sheet,
-    UploadCloud, Trash2, FileText, ClipboardCheck, Calendar, GripVertical, User, Paperclip, File as FileIcon, Pencil, SendHorizonal, BrainCircuit, CheckSquare, Square, MessageSquarePlus, Settings, Grip, CircleDot, Milestone, ListChecks
+    UploadCloud, Trash2, FileText, ClipboardCheck, User, Paperclip, File as FileIcon, Pencil, SendHorizonal, BrainCircuit, CheckSquare, Square, MessageSquarePlus, Settings, Grip, CircleDot, Milestone, ListChecks, DownloadCloud
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS, CLIENT_INFO_SECTIONS_ORDER } from '../constants';
+import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS, CLIENT_INFO_SECTIONS_ORDER, BSLABS_LOGO_BASE64, CONSULTING_JOURNEY_TEMPLATE } from '../constants';
 import { generateExecutiveSummary, generateChatResponseWithContext } from '../services/geminiService';
 import { formatDate, calculatePillarScore, calculateOverallMaturity, fileToDataUrl } from '../utils';
-import { Pillar, type PillarScore, type PillarScores, type View, type Assessment, type Deliverable, type WeeklyPlan, type KanbanCard, type KanbanCardStatus, ClientInfoSectionId, ClientInfoQuestion, Attachment, Client, ChatMessage, ChatSession, Journey, Objective, KeyResult, Initiative, Action } from '../types';
+import { Pillar, type PillarScore, type PillarScores, type View, type Assessment, type Deliverable, ClientInfoSectionId, ClientInfoQuestion, Attachment, Client, ChatMessage, ChatSession, Journey, Objective, KeyResult, Initiative, Action } from '../types';
 import SettingsView from './SettingsView';
 
 
@@ -69,11 +70,8 @@ const PrintHeader: React.FC = () => {
         <div className="print-header mb-8">
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                    <Building2 className="w-10 h-10 text-indigo-600" />
-                    <div>
-                        <h1 className="text-3xl font-bold">Commercial<span className="text-indigo-600">OS</span></h1>
-                        <p>Relatório de Maturidade Comercial</p>
-                    </div>
+                    <img src={BSLABS_LOGO_BASE64} alt="BSLabs Logo" className="h-12 w-auto" />
+                    <p className="text-lg">Relatório de Maturidade Comercial</p>
                 </div>
                 <div className="text-right text-sm">
                     <p className="font-bold text-lg">{activeClient.name}</p>
@@ -220,10 +218,7 @@ const Sidebar: React.FC<{ currentView: View, setCurrentView: (view: View) => voi
         <>
         <aside className={`no-print absolute z-30 md:relative w-64 h-full bg-gray-800/50 backdrop-blur-lg border-r border-indigo-800/30 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out`}>
             <div className="flex items-center justify-between p-4 border-b border-indigo-800/30">
-                <div className="flex items-center gap-2">
-                    <Building2 className="w-8 h-8 text-indigo-400" />
-                    <h1 className="text-2xl font-bold text-white">Commercial<span className="text-indigo-400">OS</span></h1>
-                </div>
+                 <img src={BSLABS_LOGO_BASE64} alt="BSLabs Logo" className="h-8 w-auto" />
                 <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white">
                     <X size={24} />
                 </button>
@@ -1373,6 +1368,79 @@ const DeliverableViewerModal: React.FC<{ deliverable: Deliverable; onClose: () =
     );
 };
 
+// Fix: Added missing AddDeliverableModal component
+const AddDeliverableModal: React.FC<{
+    onClose: () => void;
+    onSave: (name: string, description: string, content: string) => void;
+}> = ({ onClose, onSave }) => {
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [content, setContent] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (name.trim() && description.trim() && content.trim()) {
+            onSave(name.trim(), description.trim(), content.trim());
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-indigo-700/50 flex flex-col max-h-[90vh]">
+                <form onSubmit={handleSubmit} className="flex flex-col h-full">
+                    <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
+                        <h2 className="text-xl font-bold">Adicionar Novo Entregável</h2>
+                        <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
+                    </header>
+                    <main className="p-6 space-y-4 overflow-y-auto">
+                        <div>
+                            <label htmlFor="deliverable-name" className="block text-sm font-medium text-gray-300 mb-1">Nome do Entregável</label>
+                            <input
+                                id="deliverable-name"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Ex: Playbook de Vendas"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="deliverable-description" className="block text-sm font-medium text-gray-300 mb-1">Descrição Curta</label>
+                            <input
+                                id="deliverable-description"
+                                type="text"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                required
+                                className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Uma frase que resume o documento"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="deliverable-content" className="block text-sm font-medium text-gray-300 mb-1">Conteúdo (Markdown)</label>
+                            <textarea
+                                id="deliverable-content"
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                required
+                                rows={10}
+                                className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-mono"
+                                placeholder="Use Markdown para formatar o conteúdo. Ex: # Título, - Item de lista, **negrito**"
+                            />
+                        </div>
+                    </main>
+                    <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4 mt-auto">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Entregável</button>
+                    </footer>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 // Resource Library View
 const ResourceLibraryView: React.FC = () => {
@@ -1746,71 +1814,115 @@ const ManageQuestionsModal: React.FC<{
 
 // Planning View (NEW - REPLACES WeeklyPlanningView)
 const PlanningView: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'kanban' | 'goals'>('kanban');
+    const { activeClient, currentUser, importJourney } = useData();
+
+    const handleImportTemplate = () => {
+        if (activeClient && window.confirm("Deseja importar a 'Jornada de Inputs da Consultoria (12 Semanas)' para este cliente?")) {
+            importJourney(activeClient.id, CONSULTING_JOURNEY_TEMPLATE);
+        }
+    };
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Planejamento</h2>
-                    <p className="text-gray-400">Defina metas de longo prazo e execute as tarefas semanais.</p>
+                    <h2 className="text-2xl font-bold text-white">Planejamento de Metas (Jornadas)</h2>
+                    <p className="text-gray-400">Defina e acompanhe os objetivos, metas e ações de longo prazo.</p>
                 </div>
-            </div>
-            
-            <div className="border-b border-indigo-800/50">
-                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                {currentUser?.role === 'admin' && (
                     <button
-                        onClick={() => setActiveTab('kanban')}
-                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                            activeTab === 'kanban'
-                                ? 'border-indigo-500 text-indigo-400'
-                                : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
-                        }`}
+                        onClick={handleImportTemplate}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-200 bg-indigo-900/50 hover:bg-indigo-800/80 border border-indigo-500/50 rounded-md transition-colors"
                     >
-                        Kanban Semanal
+                        <DownloadCloud className="h-4 w-4" />
+                        Importar Jornada de Inputs
                     </button>
-                    <button
-                        onClick={() => setActiveTab('goals')}
-                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                            activeTab === 'goals'
-                                ? 'border-indigo-500 text-indigo-400'
-                                : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
-                        }`}
-                    >
-                        Metas (Jornadas)
-                    </button>
-                </nav>
+                )}
             </div>
+            <GoalsView />
+        </div>
+    );
+};
 
-            <div>
-                {activeTab === 'kanban' && <KanbanBoardView />}
-                {activeTab === 'goals' && <GoalsView />}
+const AddItemForm: React.FC<{
+    onSave: (name: string) => void;
+    onCancel: () => void;
+    placeholder: string;
+    initialValue?: string;
+    isEditing?: boolean;
+}> = ({ onSave, onCancel, placeholder, initialValue = '', isEditing = false }) => {
+    const [name, setName] = useState(initialValue);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+    }, []);
+
+    const handleSave = () => {
+        if (name.trim()) {
+            onSave(name.trim());
+        } else if (!isEditing) {
+            onCancel(); // Cancel if adding and name is empty
+        } else {
+            onSave(initialValue); // If editing and name is cleared, revert to initial to avoid blank names
+        }
+    };
+
+    return (
+        <div className="bg-gray-700/50 p-2 rounded-lg flex flex-col gap-2 my-1">
+            <input
+                ref={inputRef}
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={placeholder}
+                className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') onCancel();
+                }}
+                onBlur={handleSave} // Save on blur
+            />
+            <div className="flex justify-end gap-2">
+                <button onClick={onCancel} className="px-3 py-1 text-xs font-semibold text-gray-300 bg-gray-600 hover:bg-gray-500 rounded-md">Cancelar</button>
+                <button onClick={handleSave} className="px-3 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar</button>
             </div>
         </div>
     );
 };
 
 const GoalsView: React.FC = () => {
-    // This will be the main component for the entire goal hierarchy
     const { activeClient, addJourney, currentUser } = useData();
+    const [isAdding, setIsAdding] = useState(false);
     if (!activeClient) return null;
 
     return (
         <div className="space-y-4">
-             {activeClient.journeys.map(journey => (
+            {activeClient.journeys.map(journey => (
                 <JourneyItem key={journey.id} journey={journey} />
-             ))}
-             {currentUser?.role === 'admin' && (
-                <button 
-                    onClick={() => {
-                        const name = prompt("Nome da nova jornada:");
-                        if (name) addJourney(activeClient.id, name);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 p-3 text-sm font-semibold text-gray-400 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-700 hover:border-indigo-600 transition-colors">
-                    <Plus size={16} /> Adicionar Jornada
-                </button>
-             )}
-             {activeClient.journeys.length === 0 && (
+            ))}
+            {currentUser?.role === 'admin' && (
+                <>
+                    {isAdding ? (
+                        <AddItemForm
+                            onSave={(name) => {
+                                addJourney(activeClient.id, name);
+                                setIsAdding(false);
+                            }}
+                            onCancel={() => setIsAdding(false)}
+                            placeholder="Nome da nova jornada"
+                        />
+                    ) : (
+                        <button
+                            onClick={() => setIsAdding(true)}
+                            className="w-full flex items-center justify-center gap-2 p-3 text-sm font-semibold text-gray-400 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-700 hover:border-indigo-600 transition-colors">
+                            <Plus size={16} /> Adicionar Jornada
+                        </button>
+                    )}
+                </>
+            )}
+            {activeClient.journeys.length === 0 && !isAdding && (
                 <div className="text-center p-12 bg-gray-800/30 rounded-lg">
                     <Target className="mx-auto w-12 h-12 text-gray-500 mb-4" />
                     <h3 className="text-xl font-bold mb-2">Sem Metas Definidas</h3>
@@ -1822,332 +1934,282 @@ const GoalsView: React.FC = () => {
 };
 
 const JourneyItem: React.FC<{ journey: Journey }> = ({ journey }) => {
-    // Dummy component for now, will be implemented with full hierarchy
+    const { activeClient, currentUser, updateJourney, deleteJourney, addObjective } = useData();
     const [isExpanded, setIsExpanded] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isAddingObjective, setIsAddingObjective] = useState(false);
+    const [journeyToDelete, setJourneyToDelete] = useState<Journey | null>(null);
+
+    if (!activeClient) return null;
+
     return (
         <div className="bg-gray-800/50 rounded-xl border border-indigo-800/50">
             <header 
-                className="p-4 flex justify-between items-center cursor-pointer"
+                className="p-4 flex justify-between items-center cursor-pointer group"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full" style={{backgroundColor: journey.color}}></div>
-                    <h3 className="text-lg font-bold">{journey.name}</h3>
+                    {isEditing ? (
+                         <AddItemForm
+                            isEditing
+                            initialValue={journey.name}
+                            placeholder="Nome da Jornada"
+                            onSave={(name) => {
+                                updateJourney(activeClient.id, journey.id, name, journey.color);
+                                setIsEditing(false);
+                            }}
+                            onCancel={() => setIsEditing(false)}
+                        />
+                    ) : (
+                        <h3 className="text-lg font-bold">{journey.name}</h3>
+                    )}
                 </div>
-                <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                <div className="flex items-center gap-2">
+                   <div className="w-24">
+                        <ProgressBar progress={journey.progress} color={journey.color} />
+                    </div>
+                    {currentUser?.role === 'admin' && (
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={(e)=>{e.stopPropagation(); setIsEditing(true)}} className="p-2 rounded-full hover:bg-gray-700"><Pencil size={14} /></button>
+                             <button onClick={(e)=>{e.stopPropagation(); setJourneyToDelete(journey)}} className="p-2 rounded-full hover:bg-gray-700"><Trash2 size={14} /></button>
+                        </div>
+                    )}
+                   <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </div>
             </header>
             {isExpanded && (
-                <div className="p-4 border-t border-indigo-800/50">
-                    <p className="text-sm text-gray-400">Detalhes e objetivos da jornada irão aqui.</p>
+                <div className="p-4 border-t border-indigo-800/50 space-y-3">
+                    {journey.objectives.map(objective => (
+                        <ObjectiveItem key={objective.id} journey={journey} objective={objective} />
+                    ))}
+                    {currentUser?.role === 'admin' && (
+                        <>
+                        {isAddingObjective ? (
+                             <AddItemForm
+                                placeholder="Nome do novo objetivo"
+                                onSave={(name) => {
+                                    addObjective(activeClient.id, journey.id, name);
+                                    setIsAddingObjective(false);
+                                }}
+                                onCancel={() => setIsAddingObjective(false)}
+                            />
+                        ) : (
+                             <button onClick={() => setIsAddingObjective(true)} className="w-full flex items-center justify-center gap-2 p-2 text-xs font-semibold text-gray-400 hover:text-white bg-gray-900/50 hover:bg-gray-700/80 rounded-md transition-colors">
+                                <Plus size={14} /> Adicionar Objetivo
+                            </button>
+                        )}
+                        </>
+                    )}
                 </div>
+            )}
+             {journeyToDelete && (
+                <ConfirmationModal
+                    title="Excluir Jornada"
+                    message={`Tem certeza que deseja excluir a jornada "${journeyToDelete.name}" e todos os seus objetivos, metas e ações?`}
+                    onConfirm={() => {
+                        deleteJourney(activeClient.id, journeyToDelete.id);
+                        setJourneyToDelete(null);
+                    }}
+                    onClose={() => setJourneyToDelete(null)}
+                />
             )}
         </div>
     );
 }
 
-const KanbanBoardView: React.FC = () => {
-    const { activeClient, addWeeklyPlan, deleteWeeklyPlan, currentUser } = useData();
-    const [planToDelete, setPlanToDelete] = useState<WeeklyPlan | null>(null);
+const ObjectiveItem: React.FC<{ journey: Journey; objective: Objective }> = ({ journey, objective }) => {
+    const { activeClient, currentUser, updateObjective, deleteObjective, addKeyResult } = useData();
+    const [isExpanded, setIsExpanded] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
 
     if (!activeClient) return null;
 
-    const sortedPlans = (activeClient.weeklyPlans || []).slice().sort((a, b) => b.weekNumber - a.weekNumber);
-
-    const handleConfirmDeletePlan = () => {
-        if (activeClient && planToDelete) {
-            deleteWeeklyPlan(activeClient.id, planToDelete.id);
-            setPlanToDelete(null);
-        }
-    };
-
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <p className="text-gray-400">Organize as tarefas da semana no Kanban.</p>
-
-                {currentUser?.role === 'admin' && (
-                    <button
-                        onClick={() => addWeeklyPlan(activeClient.id)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Adicionar Semana
-                    </button>
-                )}
-            </div>
-
-            {sortedPlans.length === 0 ? (
-                <div className="text-center p-12 bg-gray-800/30 rounded-lg">
-                    <Calendar className="mx-auto w-12 h-12 text-gray-500 mb-4" />
-                    <h3 className="text-xl font-bold mb-2">Nenhum Plano Semanal</h3>
-                    <p className="text-gray-400">Clique em "Adicionar Semana" para criar o primeiro plano.</p>
+        <div className="bg-gray-900/30 rounded-lg border border-gray-700/50">
+             <header className="p-3 flex justify-between items-center cursor-pointer group" onClick={() => setIsExpanded(!isExpanded)}>
+                <div className="flex items-center gap-3">
+                    <CircleDot size={16} className="text-indigo-400"/>
+                     {isEditing ? (
+                         <AddItemForm isEditing initialValue={objective.name} placeholder="Nome do Objetivo"
+                            onSave={(name) => { updateObjective(activeClient.id, journey.id, objective.id, name); setIsEditing(false); }}
+                            onCancel={() => setIsEditing(false)} />
+                    ) : ( <h4 className="font-semibold">{objective.name}</h4> )}
                 </div>
-            ) : (
-                <div className="space-y-6">
-                    {sortedPlans.map(plan => (
-                        <WeeklyPlanCard 
-                            key={plan.id} 
-                            plan={plan} 
-                            onDelete={() => setPlanToDelete(plan)} 
-                        />
-                    ))}
+                <div className="flex items-center gap-2">
+                    <div className="w-20"><ProgressBar progress={objective.progress} /></div>
+                     {currentUser?.role === 'admin' && (
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={(e)=>{e.stopPropagation(); setIsEditing(true)}} className="p-1 rounded-full hover:bg-gray-700"><Pencil size={12} /></button>
+                             <button onClick={(e)=>{e.stopPropagation(); deleteObjective(activeClient.id, journey.id, objective.id)}} className="p-1 rounded-full hover:bg-gray-700"><Trash2 size={12} /></button>
+                        </div>
+                    )}
+                    <ChevronDown size={18} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
-            )}
-            {planToDelete && (
-                <ConfirmationModal
-                    title="Confirmar Exclusão"
-                    message={`Tem certeza que deseja excluir a Semana ${planToDelete.weekNumber}? Todas as tarefas associadas serão perdidas.`}
-                    onConfirm={handleConfirmDeletePlan}
-                    onClose={() => setPlanToDelete(null)}
-                    confirmText="Excluir Semana"
-                />
-            )}
+             </header>
+             {isExpanded && (
+                <div className="p-3 border-t border-gray-700/50 space-y-2">
+                    {objective.keyResults.map(kr => <KeyResultItem key={kr.id} journey={journey} objective={objective} keyResult={kr} />)}
+                     {currentUser?.role === 'admin' && (
+                         <>
+                         {isAdding ? (
+                              <AddItemForm placeholder="Nome da nova meta (KR)"
+                                 onSave={(name) => { addKeyResult(activeClient.id, journey.id, objective.id, name); setIsAdding(false); }}
+                                 onCancel={() => setIsAdding(false)} />
+                         ) : (
+                              <button onClick={() => setIsAdding(true)} className="w-full text-center p-1.5 text-xs text-gray-500 hover:text-white rounded-md hover:bg-gray-700/50">
+                                + Adicionar Meta (KR)
+                            </button>
+                         )}
+                         </>
+                     )}
+                </div>
+             )}
         </div>
     );
 };
 
-const WeeklyPlanCard: React.FC<{ plan: WeeklyPlan; onDelete: () => void; }> = ({ plan, onDelete }) => {
-    const { activeClient, currentUser } = useData();
-    const [isExpanded, setIsExpanded] = useState(plan.weekNumber === (activeClient?.weeklyPlans?.length || 1));
-    const [isAddCardModalOpen, setAddCardModalOpen] = useState(false);
-    const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
-    const [initialStatusForNewCard, setInitialStatusForNewCard] = useState<KanbanCardStatus>('todo');
+const KeyResultItem: React.FC<{ journey: Journey; objective: Objective; keyResult: KeyResult }> = ({ journey, objective, keyResult }) => {
+    const { activeClient, currentUser, updateKeyResult, deleteKeyResult, addInitiative } = useData();
+    const [isEditing, setIsEditing] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+
+    if(!activeClient) return null;
+
+    return (
+         <div className="bg-gray-900/20 rounded-md border border-gray-700/30 p-2 pl-4 space-y-2">
+            <div className="flex justify-between items-center group">
+                 <div className="flex items-center gap-2">
+                     <Milestone size={14} className="text-gray-400"/>
+                     {isEditing ? (
+                         <AddItemForm isEditing initialValue={keyResult.name} placeholder="Nome da Meta"
+                            onSave={(name) => { updateKeyResult(activeClient.id, journey.id, objective.id, keyResult.id, name); setIsEditing(false); }}
+                            onCancel={() => setIsEditing(false)} />
+                    ) : ( <p className="text-sm">{keyResult.name}</p> )}
+                 </div>
+                 {currentUser?.role === 'admin' && (
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button onClick={(e)=>{e.stopPropagation(); setIsEditing(true)}} className="p-1 rounded-full hover:bg-gray-700"><Pencil size={12} /></button>
+                         <button onClick={(e)=>{e.stopPropagation(); deleteKeyResult(activeClient.id, journey.id, objective.id, keyResult.id)}} className="p-1 rounded-full hover:bg-gray-700"><Trash2 size={12} /></button>
+                    </div>
+                )}
+            </div>
+            <div className="pl-6 space-y-2">
+                {keyResult.initiatives.map(i => <InitiativeItem key={i.id} journey={journey} objective={objective} keyResult={keyResult} initiative={i} />)}
+                {currentUser?.role === 'admin' && (
+                     <>
+                     {isAdding ? (
+                          <AddItemForm placeholder="Nome da nova iniciativa"
+                             onSave={(name) => { addInitiative(activeClient.id, journey.id, objective.id, keyResult.id, name); setIsAdding(false); }}
+                             onCancel={() => setIsAdding(false)} />
+                     ) : (
+                          <button onClick={() => setIsAdding(true)} className="w-full text-left p-1 text-xs text-gray-500 hover:text-white">
+                            + Adicionar Iniciativa
+                        </button>
+                     )}
+                     </>
+                 )}
+            </div>
+         </div>
+    );
+};
+
+const InitiativeItem: React.FC<{ journey: Journey; objective: Objective; keyResult: KeyResult; initiative: Initiative }> = ({ journey, objective, keyResult, initiative }) => {
+    const { activeClient, currentUser, updateInitiative, deleteInitiative, addAction } = useData();
+    const [isEditing, setIsEditing] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
 
     if(!activeClient) return null;
     
-    const columns: KanbanCardStatus[] = ['todo', 'doing', 'done'];
-    const columnNames: Record<KanbanCardStatus, string> = { todo: 'A Fazer', doing: 'Fazendo', done: 'Feito' };
-
-    const openAddCardModal = (status: KanbanCardStatus) => {
-        setInitialStatusForNewCard(status);
-        setEditingCard(null);
-        setAddCardModalOpen(true);
-    }
-    
-    const openEditCardModal = (card: KanbanCard) => {
-        setEditingCard(card);
-        setAddCardModalOpen(true);
-    };
-
     return (
-        <>
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 overflow-hidden">
-                <header className="p-4 flex justify-between items-center cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white">Semana {plan.weekNumber}</h3>
-                        <p className="text-sm text-gray-400">{formatDate(plan.startDate)} - {formatDate(plan.endDate)}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {currentUser?.role === 'admin' && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                                className="p-2 rounded-full text-gray-400 hover:bg-red-900/50 hover:text-red-400 transition-colors"
-                                title="Excluir semana"
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        )}
-                        <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </div>
-                </header>
-                {isExpanded && (
-                    <main className="p-4 border-t border-indigo-800/30">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {columns.map(status => (
-                                <div key={status} className="bg-gray-900/50 p-3 rounded-lg">
-                                    <h4 className="font-semibold mb-3 text-center">{columnNames[status]} ({plan.cards.filter(c => c.status === status).length})</h4>
-                                    <div className="space-y-3 min-h-[100px]">
-                                        {plan.cards.filter(c => c.status === status).map(card => (
-                                            <KanbanCardItem 
-                                                key={card.id} 
-                                                card={card} 
-                                                planId={plan.id}
-                                                onEdit={() => openEditCardModal(card)}
-                                            />
-                                        ))}
-                                    </div>
-                                    {currentUser?.role === 'admin' && (
-                                        <button 
-                                            onClick={() => openAddCardModal(status)}
-                                            className="mt-3 w-full text-sm text-gray-400 hover:text-white flex items-center justify-center gap-2 p-2 rounded-md hover:bg-gray-700 transition-colors">
-                                            <Plus size={16}/> Adicionar Tarefa
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+        <div className="bg-gray-900/20 rounded-md p-2 space-y-2">
+            <div className="flex justify-between items-center group">
+                <div className="flex items-center gap-2">
+                    <ListChecks size={14} className="text-gray-400"/>
+                    {isEditing ? (
+                         <AddItemForm isEditing initialValue={initiative.name} placeholder="Nome da Iniciativa"
+                            onSave={(name) => { updateInitiative(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, name); setIsEditing(false); }}
+                            onCancel={() => setIsEditing(false)} />
+                    ) : ( <p className="text-sm font-medium text-gray-300">{initiative.name}</p> )}
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-16"><ProgressBar progress={initiative.progress} color="#a5b4fc" /></div>
+                     {currentUser?.role === 'admin' && (
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={(e)=>{e.stopPropagation(); setIsEditing(true)}} className="p-1 rounded-full hover:bg-gray-700"><Pencil size={12} /></button>
+                             <button onClick={(e)=>{e.stopPropagation(); deleteInitiative(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id)}} className="p-1 rounded-full hover:bg-gray-700"><Trash2 size={12} /></button>
                         </div>
-                    </main>
-                )}
+                    )}
+                </div>
             </div>
-            {isAddCardModalOpen && (
-                <AddKanbanCardModal 
-                    planId={plan.id}
-                    card={editingCard}
-                    initialStatus={initialStatusForNewCard}
-                    onClose={() => setAddCardModalOpen(false)}
-                />
-            )}
-        </>
+            <div className="pl-6 space-y-1">
+                {initiative.actions.map(a => <ActionItem key={a.id} journey={journey} objective={objective} keyResult={keyResult} initiative={initiative} action={a} />)}
+                 {currentUser?.role === 'admin' && (
+                     <>
+                     {isAdding ? (
+                          <AddItemForm placeholder="Nome da nova ação"
+                             onSave={(name) => { addAction(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, name); setIsAdding(false); }}
+                             onCancel={() => setIsAdding(false)} />
+                     ) : (
+                          <button onClick={() => setIsAdding(true)} className="w-full text-left p-1 text-xs text-gray-500 hover:text-white">
+                            + Adicionar Ação
+                        </button>
+                     )}
+                     </>
+                 )}
+            </div>
+        </div>
     );
 };
 
-const AddKanbanCardModal: React.FC<{ planId: string; card: KanbanCard | null; initialStatus: KanbanCardStatus; onClose: () => void; }> = ({ planId, card, initialStatus, onClose }) => {
-    const { activeClient, addKanbanCard, updateKanbanCard } = useData();
-    const [title, setTitle] = useState(card?.title || '');
-    const [description, setDescription] = useState(card?.description || '');
-    const [status, setStatus] = useState(card?.status || initialStatus);
-    const [actionId, setActionId] = useState(card?.actionId || '');
-
-    if (!activeClient) return null;
+const ActionItem: React.FC<{ journey: Journey; objective: Objective; keyResult: KeyResult; initiative: Initiative; action: Action }> = ({ journey, objective, keyResult, initiative, action }) => {
+    const { activeClient, currentUser, updateAction, deleteAction } = useData();
+    const [isEditing, setIsEditing] = useState(false);
     
-    const availableActions = useMemo(() => {
-        const allActions: ({action: Action, journey: Journey, initiative: Initiative})[] = [];
-        activeClient.journeys.forEach(j => {
-            j.objectives.forEach(o => {
-                o.keyResults.forEach(k => {
-                    k.initiatives.forEach(i => {
-                        i.actions.forEach(a => {
-                            if (!a.isInKanban || a.id === card?.actionId) {
-                                allActions.push({ action: a, journey: j, initiative: i });
-                            }
-                        });
-                    });
-                });
-            });
-        });
-        return allActions;
-    }, [activeClient.journeys, card?.actionId]);
-    
-    const handleActionChange = (newActionId: string) => {
-        setActionId(newActionId);
-        if (newActionId) {
-            const selected = availableActions.find(a => a.action.id === newActionId);
-            if(selected) setTitle(selected.action.name);
-        } else {
-            if (!card) setTitle('');
-        }
-    };
+    if(!activeClient) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title.trim()) return;
-
-        const journeyId = availableActions.find(a => a.action.id === actionId)?.journey.id;
-        
-        const cardData = {
-            title,
-            description,
-            assignee: 'Não atribuído',
-            dueDate: new Date().toISOString(),
-            goal: '',
-            actionId: actionId || undefined,
-            journeyId: journeyId,
-        };
-
-        if(card) {
-            updateKanbanCard(activeClient.id, planId, card.id, { ...cardData, status });
-        } else {
-            addKanbanCard(activeClient.id, planId, cardData, status);
-        }
-        onClose();
+    const handleToggleComplete = () => {
+        updateAction(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, action.id, action.name, !action.isCompleted);
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-indigo-700/50">
-                <form onSubmit={handleSubmit}>
-                    <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                        <h2 className="text-xl font-bold">{card ? 'Editar Tarefa' : 'Adicionar Tarefa'}</h2>
-                        <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
-                    </header>
-                    <main className="p-6 space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Vincular a uma Ação</label>
-                            <select value={actionId} onChange={e => handleActionChange(e.target.value)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
-                                <option value="">Nenhuma (tarefa avulsa)</option>
-                                {availableActions.map(({ action, journey, initiative }) => (
-                                    <option key={action.id} value={action.id}>
-                                        {journey.name} &gt; {initiative.name} &gt; {action.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Título</label>
-                            <input type="text" value={title} onChange={e => setTitle(e.target.value)} required disabled={!!actionId} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-70" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
-                            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-sm"></textarea>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Status</label>
-                            <select value={status} onChange={e => setStatus(e.target.value as KanbanCardStatus)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="todo">A Fazer</option>
-                                <option value="doing">Fazendo</option>
-                                <option value="done">Feito</option>
-                            </select>
-                        </div>
-                    </main>
-                     <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar</button>
-                    </footer>
-                </form>
+        <div className="flex items-center justify-between group text-sm">
+            <div className="flex items-center gap-2">
+                <button onClick={handleToggleComplete} disabled={currentUser?.role !== 'admin'}>
+                    {action.isCompleted ? <CheckSquare size={14} className="text-green-400" /> : <Square size={14} className="text-gray-500" />}
+                </button>
+                {isEditing ? (
+                    <AddItemForm isEditing initialValue={action.name} placeholder="Nome da Ação"
+                        onSave={(name) => { updateAction(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, action.id, name, action.isCompleted); setIsEditing(false); }}
+                        onCancel={() => setIsEditing(false)} />
+                ) : (
+                    <span className={`${action.isCompleted ? 'line-through text-gray-500' : 'text-gray-300'}`}>{action.name}</span>
+                )}
+            </div>
+            <div className="flex items-center gap-2">
+                {currentUser?.role === 'admin' && (
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button onClick={() => setIsEditing(true)} className="p-1 rounded-full hover:bg-gray-700"><Pencil size={12} /></button>
+                         <button onClick={() => deleteAction(activeClient.id, journey.id, objective.id, keyResult.id, initiative.id, action.id)} className="p-1 rounded-full hover:bg-gray-700"><Trash2 size={12} /></button>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
 
-const KanbanCardItem: React.FC<{ card: KanbanCard, planId: string, onEdit: () => void; }> = ({ card, planId, onEdit }) => {
-    const { currentUser, activeClient, deleteKanbanCard } = useData();
-    const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-
-    if (!activeClient) return null;
-    
-    const journey = card.journeyId ? activeClient.journeys.find(j => j.id === card.journeyId) : null;
-    const borderColor = journey ? journey.color : 'border-gray-700';
-
-    const handleConfirmDelete = () => {
-        deleteKanbanCard(activeClient.id, planId, card.id);
-        setIsConfirmingDelete(false);
-    };
-
+const ProgressBar: React.FC<{ progress: number; color?: string }> = ({ progress, color = '#4f46e5' }) => {
     return (
-        <>
-            <div className={`bg-gray-800 p-3 rounded-lg border-l-4 group cursor-pointer`} style={{ borderColor }}>
-                <div className="flex justify-between items-start">
-                    <p className="font-semibold text-white text-sm pr-2">{card.title}</p>
-                    {currentUser?.role === 'admin' && (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                            <button onClick={onEdit} className="p-1 hover:bg-gray-700 rounded-md"><Pencil size={12} /></button>
-                            <button onClick={() => setIsConfirmingDelete(true)} className="p-1 hover:bg-gray-700 rounded-md"><Trash2 size={12} /></button>
-                        </div>
-                    )}
-                </div>
-                <p className="text-gray-400 text-xs mt-1">{card.description || "Sem descrição."}</p>
-                {card.actionId && (
-                    <div className="mt-2">
-                        <span className="flex items-center gap-1 text-xs text-indigo-400 bg-indigo-900/50 w-fit px-2 py-0.5 rounded-full">
-                            <Target size={12} />
-                            Meta Vinculada
-                        </span>
-                    </div>
-                )}
-            </div>
-            {isConfirmingDelete && (
-                <ConfirmationModal
-                    title="Confirmar Exclusão"
-                    message={`Tem certeza que deseja excluir a tarefa "${card.title}"?`}
-                    onConfirm={handleConfirmDelete}
-                    onClose={() => setIsConfirmingDelete(false)}
-                    confirmText="Excluir Tarefa"
-                />
-            )}
-        </>
+        <div className="w-full bg-gray-700 rounded-full h-2">
+            <div
+                className="h-2 rounded-full"
+                style={{ width: `${progress}%`, backgroundColor: color, transition: 'width 0.5s ease-in-out' }}
+            ></div>
+        </div>
     );
-}
+};
 
 // Chatbot View
 const ChatbotView: React.FC = () => {
@@ -2609,53 +2671,5 @@ const PillarAssessmentForm: React.FC<{
     );
 };
 
-const AddDeliverableModal: React.FC<{
-    onClose: () => void;
-    onSave: (name: string, description: string, content: string) => void;
-}> = ({ onClose, onSave }) => {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [content, setContent] = useState('');
-
-    const handleSubmit = () => {
-        if (name.trim() && content.trim()) {
-            onSave(name, description, content);
-            onClose();
-        } else {
-            alert('Nome e Conteúdo são obrigatórios.');
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col border border-indigo-700/50">
-                <header className="flex justify-between items-center p-4 border-b border-indigo-800/50">
-                    <h2 className="text-xl font-bold">Adicionar Entregável</h2>
-                    <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors"><X size={20} /></button>
-                </header>
-                <main className="p-6 flex-1 overflow-y-auto space-y-4">
-                    <div>
-                        <label htmlFor="del-name" className="block text-sm font-medium text-gray-300 mb-1">Nome do Documento</label>
-                        <input id="del-name" type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"/>
-                    </div>
-                     <div>
-                        <label htmlFor="del-desc" className="block text-sm font-medium text-gray-300 mb-1">Descrição</label>
-                        <input id="del-desc" type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500"/>
-                    </div>
-                     <div>
-                        <label htmlFor="del-content" className="block text-sm font-medium text-gray-300 mb-1">Conteúdo (Markdown)</label>
-                        <textarea id="del-content" value={content} onChange={e => setContent(e.target.value)} rows={15} className="w-full bg-gray-900/50 p-2 rounded-md border border-gray-600 font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
-                         <p className="text-xs text-gray-500 mt-1">Use # para títulos, - para listas, e **texto** para negrito.</p>
-                    </div>
-                </main>
-                <footer className="flex justify-end items-center p-4 border-t border-indigo-800/50 gap-4">
-                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
-                    <button type="button" onClick={handleSubmit} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">Salvar Entregável</button>
-                </footer>
-            </div>
-        </div>
-    );
-};
-
-
+// Fix: Added default export for the Dashboard component to be used in App.tsx
 export default Dashboard;

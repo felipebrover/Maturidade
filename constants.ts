@@ -1,8 +1,11 @@
-import { Pillar, ClientInfoData, ClientInfoSectionId, Client, User, View, Journey, WeeklyPlan } from './types';
+
+import { Pillar, ClientInfoData, ClientInfoSectionId, Client, User, View, Journey } from './types';
 import type { Icon } from 'lucide-react';
 
 // We can't import lucide-react here as it's a value, so we'll pass them as props.
 // This file is for data constants.
+
+export const BSLABS_LOGO_BASE64 = `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxISEhUSEhIVFRUVFRUVFRUVFRUVFRUVFRUWFhUVFRUYHSggGBolHRUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKDg0OGxAQGy0lICUtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAOEA4QMBEQACEQEDEQH/xAAcAAEAAgMBAQEAAAAAAAAAAAAABgcDBAUBAgj/xABFEAACAQMCAwQFBgsIAgMAAAABAgADBBESIQUGMUEHEyJRYXGBkQjSoaKxwfAUIzNCUmJygrLS4RYkQ1Pxg5PC0jVjg//EABgBAQEBAQEAAAAAAAAAAAAAAAABAgME/8QAHxEBAQEBAAMAAgMBAAAAAAAAAAERIQISUQMTMVEE/9oADAMBAAIRAxEAPwDuEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQERE-Zk=`;
 
 export const PILLAR_DATA: Record<Pillar, { name: string; description: string; color: string; }> = {
     [Pillar.STRATEGY]: {
@@ -49,7 +52,7 @@ export const PILLAR_QUESTIONS: Record<Pillar, string[]> = {
         'A empresa possui missão, visão e valores formalizados e comunicados?',
         'Existe posicionamento estratégico claro (ICP e proposta de valor)?',
         'A liderança e o time conhecem o ICP e as red flags?',
-        'Existe visão de longo prazo (12-24 meses)?',
+        'Existe visão de longo prazo (12–24 meses)?',
         'Estratégia comercial alinhada ao plano global?',
         'Objetivos claros de expansão (faturamento, base, mercado)?',
         'Discurso comercial coerente com a proposta de valor?',
@@ -226,103 +229,458 @@ export const INITIAL_USERS: User[] = [
     },
 ];
 
-// --- ÍNTEGRO DATA ---
+// --- CONSULTING JOURNEY TEMPLATE (12 Weeks) ---
+export const CONSULTING_JOURNEY_TEMPLATE: Journey = {
+    id: 'journey-consulting-template',
+    name: "Inputs Essenciais da Consultoria Comercial (12 semanas)",
+    color: '#6366f1', // Indigo
+    progress: 0,
+    objectives: [
+        {
+            id: 'obj-pre-proj',
+            name: "OBJETIVO 0: Pré-Projeto (Diagnóstico)",
+            progress: 0,
+            keyResults: [
+                {
+                    id: 'kr-0-1',
+                    name: "Semana 0 – Matriz + Primeiras Informações",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-diag',
+                            name: "Diagnóstico Inicial",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-matriz', name: "Responder a Matriz de Maturidade", isCompleted: false },
+                                { id: 'act-docs', name: "Enviar documentos existentes (scripts, funil, playbook, metas)", isCompleted: false },
+                                { id: 'act-crm', name: "Enviar acesso ao CRM (se existir)", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-context',
+                            name: "Contexto Estratégico",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-dores', name: "Descrever principais dores comerciais", isCompleted: false },
+                                { id: 'act-prods', name: "Enviar lista completa de produtos/serviços (com preços)", isCompleted: false },
+                                { id: 'act-sazo', name: "Informar sazonalidades relevantes", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-interviews',
+                            name: "Organização de Entrevistas",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-def-ent', name: "Definir quem deve ser entrevistado na Semana 1", isCompleted: false }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'obj-fase-1',
+            name: "OBJETIVO 1: Fase 1 — Estruturação (Semanas 1 a 4)",
+            progress: 0,
+            keyResults: [
+                {
+                    id: 'kr-1-1',
+                    name: "Semana 1 — Alinhamento + ICP/Persona",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-expect',
+                            name: "Expectativas & Direção",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-one-thing', name: "Se a consultoria entregasse apenas UMA coisa, qual deveria ser?", isCompleted: false },
+                                { id: 'act-diff', name: "O que precisa estar diferente ao final de 12 semanas?", isCompleted: false },
+                                { id: 'act-prio', name: "O que é prioridade absoluta agora?", isCompleted: false },
+                                { id: 'act-dont-want', name: "O que você NÃO quer mais que aconteça no comercial?", isCompleted: false },
+                                { id: 'act-pain', name: "Qual é sua maior dor atual?", isCompleted: false },
+                                { id: 'act-obj-90', name: "Qual seu objetivo principal para os próximos 90 dias?", isCompleted: false },
+                                { id: 'act-vis-12', name: "Qual sua visão para 12 meses?", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-icp',
+                            name: "ICP e Persona",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-desc-icp', name: "Descrever cliente ideal (ICP)", isCompleted: false },
+                                { id: 'act-anti-icp', name: "Descrever anti-ICP", isCompleted: false },
+                                { id: 'act-best-clients', name: "Listar 5 melhores clientes (+ motivo)", isCompleted: false },
+                                { id: 'act-worst-clients', name: "Listar 5 piores clientes (+ motivo)", isCompleted: false },
+                                { id: 'act-pain-buy', name: "Listar dores antes da compra", isCompleted: false },
+                                { id: 'act-results', name: "Enviar resultados desejados pelo cliente", isCompleted: false },
+                                { id: 'act-decision', name: "Descrever como cliente toma decisão", isCompleted: false },
+                                { id: 'act-channels', name: "Informar canais onde ICP está", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-pv',
+                            name: "Proposta de Valor e Concorrência",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-prop', name: "Enviar proposta de valor atual", isCompleted: false },
+                                { id: 'act-compet', name: "Listar concorrentes diretos", isCompleted: false },
+                                { id: 'act-comp-good', name: "Informar o que concorrentes fazem bem", isCompleted: false },
+                                { id: 'act-comp-bad', name: "Informar onde concorrentes falham", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-1-2',
+                    name: "Semana 2 — Organograma + Mapa de Funções",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-struct',
+                            name: "Estrutura de Equipe",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-roles', name: "Enviar nome, cargo e função de cada colaborador", isCompleted: false },
+                                { id: 'act-report', name: "Enviar cadeia de reporte (quem responde a quem)", isCompleted: false },
+                                { id: 'act-dup', name: "Identificar funções duplicadas", isCompleted: false },
+                                { id: 'act-decis', name: "Informar quem toma decisões comerciais", isCompleted: false },
+                                { id: 'act-auto', name: "Informar quem tem autonomia para descontos/preços", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-gaps',
+                            name: "Lacunas de Equipe",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-missing', name: "Informar funções que deveriam existir, mas não existem", isCompleted: false },
+                                { id: 'act-contact', name: "Informar quem fala diretamente com clientes", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-1-3',
+                    name: "Semana 3 — Metas + Dados + CRM",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-leads',
+                            name: "Dados de Leads e Funil",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-vol', name: "Enviar volume de leads dos últimos 3 meses, por canal", isCompleted: false },
+                                { id: 'act-invest', name: "Enviar investimento mensal em marketing", isCompleted: false },
+                                { id: 'act-cpl', name: "Enviar custo por lead (se existir)", isCompleted: false },
+                                { id: 'act-conv', name: "Enviar taxas de conversão por etapa", isCompleted: false },
+                                { id: 'act-cycle', name: "Informar ciclo médio de vendas", isCompleted: false },
+                                { id: 'act-roi', name: "Informar canal com maior ROI", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-goals',
+                            name: "Metas e Capacidade",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-target', name: "Quantas vendas/mês deseja atingir nos próximos 90 dias?", isCompleted: false },
+                                { id: 'act-old-goals', name: "Enviar metas antigas (se existirem)", isCompleted: false },
+                                { id: 'act-sazo-2', name: "Informar sazonalidades", isCompleted: false },
+                                { id: 'act-cap', name: "Informar capacidade de atendimento por vendedor", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-crm-week3',
+                            name: "CRM",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-which-crm', name: "Informar qual CRM usa (se tiver)", isCompleted: false },
+                                { id: 'act-fields', name: "Enviar campos obrigatórios usados hoje", isCompleted: false },
+                                { id: 'act-update', name: "Informar como o CRM é atualizado hoje", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-1-4',
+                    name: "Semana 4 — Playbook de Vendas",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-cases',
+                            name: "Casos Reais (Essência do Playbook)",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-convs', name: "Enviar 10 conversas reais (5 boas, 5 ruins)", isCompleted: false },
+                                { id: 'act-props', name: "Enviar 3 propostas que fecharam e 3 que não fecharam", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-funnel',
+                            name: "Funil e Abordagem",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-init', name: "Descrever como inicia conversas", isCompleted: false },
+                                { id: 'act-qual', name: "Descrever como qualifica leads", isCompleted: false },
+                                { id: 'act-pres', name: "Descrever como apresenta o produto", isCompleted: false },
+                                { id: 'act-fu', name: "Explicar como faz follow-up hoje", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-obj',
+                            name: "Objeções",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-common', name: "Listar objeções mais comuns", isCompleted: false },
+                                { id: 'act-silent', name: "Listar objeções silenciosas (cliente some)", isCompleted: false },
+                                { id: 'act-hard', name: "Quais objeções o time não sabe lidar?", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-acq',
+                            name: "Canais de Aquisição",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-inbound', name: "Enviar como chegam leads inbound", isCompleted: false },
+                                { id: 'act-outbound', name: "Enviar como chegam leads outbound", isCompleted: false },
+                                { id: 'act-indic', name: "Enviar como chegam leads de indicação", isCompleted: false }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'obj-fase-2',
+            name: "OBJETIVO 2: Fase 2 — Governança (Semanas 5 a 8)",
+            progress: 0,
+            keyResults: [
+                {
+                    id: 'kr-2-1',
+                    name: "Semana 5 — Playbook do Gestor Comercial",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-routine',
+                            name: "Rotina & Gestão",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-man-rout', name: "Descrever rotina completa do gestor", isCompleted: false },
+                                { id: 'act-rituals', name: "Listar rituais atuais de gestão", isCompleted: false },
+                                { id: 'act-charge', name: "Informar como gestor cobra metas", isCompleted: false },
+                                { id: 'act-track', name: "Informar como gestor acompanha atividades", isCompleted: false },
+                                { id: 'act-feed', name: "Informar como gestor dá feedback", isCompleted: false },
+                                { id: 'act-diff-man', name: "Informar maiores dificuldades do gestor", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-tools',
+                            name: "Ferramentas e Operações",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-man-tools', name: "Quais ferramentas o gestor usa hoje?", isCompleted: false },
+                                { id: 'act-prod', name: "Existe controle de produtividade?", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-2-2',
+                    name: "Semana 6 — CS + Onboarding de Funcionários",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-cs',
+                            name: "Pós-venda (CS)",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-after', name: "Explicar o que acontece após uma venda", isCompleted: false },
+                                { id: 'act-onb', name: "Quem faz onboarding do cliente", isCompleted: false },
+                                { id: 'act-time', name: "Quanto tempo até o primeiro resultado", isCompleted: false },
+                                { id: 'act-churn', name: "Enviar principais motivos de churn", isCompleted: false },
+                                { id: 'act-rework', name: "Enviar o que mais gera retrabalho no pós-venda", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-hr',
+                            name: "RH (Onboarding de Funcionários)",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-hire', name: "Como contrata hoje", isCompleted: false },
+                                { id: 'act-train', name: "Como treina novos vendedores", isCompleted: false },
+                                { id: 'act-mistakes', name: "Piores erros de contratação até hoje", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-2-3',
+                    name: "Semana 7 — Cultura de Execução",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-agenda',
+                            name: "Rotina e Agenda",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-wk-ag', name: "Descrever a agenda semanal atual", isCompleted: false },
+                                { id: 'act-meet', name: "Informar reuniões que acontecem hoje", isCompleted: false },
+                                { id: 'act-tasks', name: "Listar tarefas indispensáveis do time", isCompleted: false },
+                                { id: 'act-waste', name: "Listar tarefas que são desperdício", isCompleted: false },
+                                { id: 'act-imped', name: "O que impede execução diária hoje?", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-behav',
+                            name: "Comportamento & Prioridade",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-prio-day', name: "Como o time prioriza o dia?", isCompleted: false },
+                                { id: 'act-react', name: "Informar como o time reage a cobrança", isCompleted: false },
+                                { id: 'act-perf-day', name: "Descrever o que seria um “dia comercial perfeito”", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-2-4',
+                    name: "Semana 8 — Forecast Operacional",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-forecast',
+                            name: "Previsão e Dados",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-how-fore', name: "Vocês fazem previsão de vendas? Como?", isCompleted: false },
+                                { id: 'act-close', name: "Quem fecha os números semanalmente?", isCompleted: false },
+                                { id: 'act-kpi-wk', name: "Enviar indicadores acompanhados semanalmente", isCompleted: false },
+                                { id: 'act-prev', name: "Quais etapas do funil são mais previsíveis?", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-vol',
+                            name: "Volume e Sazonalidade",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-perc', name: "Qual percentual de oportunidades vira cliente?", isCompleted: false },
+                                { id: 'act-sazo-imp', name: "Como sazonalidade impacta as vendas?", isCompleted: false }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            id: 'obj-fase-3',
+            name: "OBJETIVO 3: Fase 3 — Aceleração (Semanas 9 a 12)",
+            progress: 0,
+            keyResults: [
+                {
+                    id: 'kr-3-1',
+                    name: "Semana 9 — Liderança (PDI + 1:1)",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-lead-dev',
+                            name: "Desenvolvimento dos Líderes",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-list-lead', name: "Listar líderes que participarão do PDI", isCompleted: false },
+                                { id: 'act-strong', name: "Listar pontos fortes de cada líder", isCompleted: false },
+                                { id: 'act-weak', name: "Listar pontos fracos", isCompleted: false },
+                                { id: 'act-obj-lead', name: "Informar objetivos de cada líder", isCompleted: false },
+                                { id: 'act-feed-lead', name: "Enviar feedback de liderados sobre os líderes", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-3-2',
+                    name: "Semana 10 — Cargos, Trilhas e Remuneração V1",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-career',
+                            name: "Estrutura de Carreira",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-roles-off', name: "Listar cargos oficiais", isCompleted: false },
+                                { id: 'act-levels', name: "Definir níveis (Jr, Pleno, Sênior)", isCompleted: false },
+                                { id: 'act-beh-good', name: "Listar comportamentos a serem premiados", isCompleted: false },
+                                { id: 'act-beh-bad', name: "Listar comportamentos que NÃO devem ser premiados", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-rem-v1',
+                            name: "Primeira Versão de Remuneração",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-meta-ind', name: "Definir metas individuais por cargo", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-3-3',
+                    name: "Semana 11 — Remuneração Final + Auditoria",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-audit',
+                            name: "Auditoria de Maturidade",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-imp', name: "O que melhorou desde a Semana 0?", isCompleted: false },
+                                { id: 'act-not-work', name: "O que ainda não funciona?", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-rem-v2',
+                            name: "Remuneração V2",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-rem-ok', name: "O que funcionou na remuneração V1?", isCompleted: false },
+                                { id: 'act-rem-fail', name: "O que não funcionou?", isCompleted: false },
+                                { id: 'act-rem-perf', name: "O que falta para remuneração ficar “perfeita”?", isCompleted: false }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'kr-3-4',
+                    name: "Semana 12 — Roadmap 12–24 meses",
+                    progress: 0,
+                    initiatives: [
+                        {
+                            id: 'init-plan',
+                            name: "Planejamento Futuro",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-where', name: "Onde quer estar em 12 meses?", isCompleted: false },
+                                { id: 'act-exp', name: "Quais produtos/serviços quer expandir?", isCompleted: false },
+                                { id: 'act-size', name: "Qual deve ser o tamanho ideal do time?", isCompleted: false },
+                                { id: 'act-mon-goal', name: "Qual meta mensal deseja atingir?", isCompleted: false }
+                            ]
+                        },
+                        {
+                            id: 'init-cont',
+                            name: "Continuidade",
+                            progress: 0,
+                            actions: [
+                                { id: 'act-roadmap', name: "O que não deu tempo de construir e precisa entrar no roadmap?", isCompleted: false },
+                                { id: 'act-review', name: "Quais processos devem ser revisados trimestralmente?", isCompleted: false }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+};
+
+// --- ÍNTEGRO DATA (UPDATED WITH NEW JOURNEY) ---
 
 const integroJourneys: Journey[] = [
-    {
-        id: 'j-integro-1',
-        name: "Planejamento Trimestral Íntegro (Nov/24 - Jan/25)",
-        color: '#8b5cf6', // Violet
-        objectives: [
-            {
-                id: 'o-integro-1',
-                name: "O1 – Bater 2.000 placas até 31/01",
-                keyResults: [
-                    { id: 'k-integro-1-1', name: "Atingir 23-28 novos leads/dia por vendedor (Realista)", progress: 0, initiatives: [
-                        {
-                            id: 'i-integro-1-1', name: "Acelerar Geração de Leads", actions: [
-                                { id: 'a-integro-1', name: "Ativar IA para SDR/BDR", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-2', name: "Rodar campanha de Tráfego Pago (Novembro)", isCompleted: false, isInKanban: false },
-                                { id: 'a-integro-3', name: "Rodar campanha de Tráfego Pago (Dezembro)", isCompleted: false, isInKanban: false },
-                                { id: 'a-integro-4', name: "Rodar campanha de Tráfego Pago (Janeiro)", isCompleted: false, isInKanban: false },
-                            ]
-                        },
-                        {
-                            id: 'i-integro-1-2', name: "Otimizar Processo de Vendas", actions: [
-                                { id: 'a-integro-5', name: "Implementar rituais diários e semanais de OKR", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-6', name: "Realizar auditoria de CRM 2x/dia", isCompleted: false, isInKanban: false },
-                            ]
-                        },
-                    ] },
-                    { id: 'k-integro-1-2', name: "Realizar 80-120 Follow-ups/dia (Realista)", progress: 0, initiatives: [] },
-                    { id: 'k-inteгро-1-3', name: "Gerar 10-12 Indicações/semana (Realista)", progress: 0, initiatives: [] },
-                    { id: 'k-integro-1-4', name: "Realizar 4-5 Reativações/semana (Realista)", progress: 0, initiatives: [] },
-                    { id: 'k-integro-1-5', name: "Realizar 1 prospecção ativa com orçamento/dia (Realista)", progress: 0, initiatives: [] },
-                    { id: 'k-integro-1-6', name: "Manter conversão semanal em 14,7% (Realista)", progress: 0, initiatives: [] },
-                ],
-            },
-            {
-                id: 'o-integro-2',
-                name: "O2 — Garantir disciplina operacional e previsibilidade",
-                keyResults: [
-                     { id: 'k-integro-2-1', name: "Implementar ritual diário (15’) e semanal (45’)", progress: 0, initiatives: [
-                        {
-                            id: 'i-integro-2-1', name: "Implementar Rituais de Gestão", actions: [
-                                { id: 'a-integro-7', name: "Estruturar e iniciar ritual diário (daily)", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-8', name: "Estruturar e iniciar ritual semanal", isCompleted: false, isInKanban: true },
-                            ]
-                        },
-                     ] },
-                     { id: 'k-integro-2-2', name: "Acompanhar KPIs diariamente", progress: 0, initiatives: [] },
-                     { id: 'k-integro-2-3', name: "Manter SLA de resposta ≤ 5 min", progress: 0, initiatives: [] },
-                     { id: 'k-integro-2-4', name: "Realizar auditoria do CRM 2x/dia", progress: 0, initiatives: [
-                        {
-                            id: 'i-integro-2-2', name: "Garantir Qualidade de Dados no CRM", actions: [
-                                { id: 'a-integro-9', name: "Definir processo de auditoria do CRM", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-10', name: "Executar auditorias diárias do CRM", isCompleted: false, isInKanban: true },
-                            ]
-                        },
-                     ] },
-                     { id: 'k-integro-2-5', name: "Gerar relatório quinzenal de conversão", progress: 0, initiatives: [] },
-                     { id: 'k-integro-2-6', name: "Garantir operação no cenário realista diariamente", progress: 0, initiatives: [] },
-                ],
-            },
-            {
-                id: 'o-integro-3',
-                name: "O3 — Garantir demanda contínua, nutrição e aumento de LTV",
-                keyResults: [
-                    { id: 'k-integro-3-1', name: "Manter CPL ≤ R$ 8,00", progress: 0, initiatives: [
-                        {
-                            id: 'i-integro-3-1', name: "Estruturar Marketing Digital", actions: [
-                                { id: 'a-integro-11', name: "Configurar RD Station Marketing", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-12', name: "Criar 2 novos criativos para campanha", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-13', name: "Criar públicos Lookalike e Retargeting", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-14', name: "Desenvolver painel de métricas de marketing", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-20', name: "Criar 3 novos criativos para teste A/B", isCompleted: false, isInKanban: true },
-                            ]
-                        },
-                    ] },
-                    { id: 'k-integro-3-2', name: "Implementar 4 fluxos automatizados de nutrição", progress: 0, initiatives: [
-                        {
-                            id: 'i-integro-3-2', name: "Implementar Nutrição e Retenção", actions: [
-                                { id: 'a-integro-15', name: "Configurar fluxo de nutrição inicial", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-16', name: "Configurar 2 fluxos no RD Station (Semana 2)", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-17', name: "Configurar 2 fluxos no RD Station (Semana 3)", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-18', name: "Planejar reimpacto da base para Janeiro", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-19', name: "Criar conteúdo social de autoridade", isCompleted: false, isInKanban: true },
-                                { id: 'a-integro-21', name: "Realizar primeira reativação quinzenal via RD Station", isCompleted: false, isInKanban: true },
-                            ]
-                        },
-                    ] },
-                    { id: 'k-integro-3-3', name: "Testar 2 criativos novos por semana (A/B)", progress: 0, initiatives: [] },
-                    { id: 'k-integro-3-4', name: "Realizar reativação quinzenal via RD Station", progress: 0, initiatives: [] },
-                    { id: 'k-integro-3-5', name: "Aumentar % de leads de canais não pagos", progress: 0, initiatives: [] },
-                    { id: 'k-integro-3-6', name: "Criar públicos Lookalike + Retarget", progress: 0, initiatives: [] },
-                    { id: 'k-integro-3-7', name: "Criar painel de CAC, CPL, ROI e LTV", progress: 0, initiatives: [] },
-                ],
-            },
-        ]
-    }
+    JSON.parse(JSON.stringify(CONSULTING_JOURNEY_TEMPLATE))
 ];
 
 export const DUMMY_CLIENTS_DATA: Client[] = [
@@ -376,7 +734,6 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
             },
         ],
         deliverables: [],
-        weeklyPlans: [],
         clientInfo: {
             summary: {
                 title: 'Resumo Executivo',
@@ -465,7 +822,6 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
             }
         ],
         deliverables: [],
-        weeklyPlans: [],
         clientInfo: {
             summary: {
                 title: 'Resumo Executivo',
@@ -548,7 +904,6 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
             },
         ],
         deliverables: [],
-        weeklyPlans: [],
         clientInfo: JSON.parse(JSON.stringify(DEFAULT_CLIENT_INFO)),
         chatSessions: [],
         diagnosticSummary: '',
@@ -576,7 +931,6 @@ export const DUMMY_CLIENTS_DATA: Client[] = [
             },
         ],
         deliverables: [],
-        weeklyPlans: [],
         clientInfo: JSON.parse(JSON.stringify(DEFAULT_CLIENT_INFO)),
         chatSessions: [],
         diagnosticSummary: '',

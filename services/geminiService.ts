@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
-import type { Client, Assessment, Pillar, Deliverable } from '../types';
+import type { Client, Assessment, Pillar, Deliverable, PillarScores } from '../types';
 import { PILLARS, PILLAR_DATA } from '../constants';
-import { calculatePillarScore } from '../utils';
+import { calculatePillarScore, calculateOverallMaturity } from '../utils';
 
 // Fix: Per Gemini API guidelines, initialize the SDK with process.env.API_KEY.
 // This also resolves the TypeScript error related to 'import.meta.env'.
@@ -118,5 +118,37 @@ ${doc.content}
     } catch (error) {
         console.error("Error calling Gemini API for chat:", error);
         return "Ocorreu um erro ao comunicar com a IA. Verifique o console para mais detalhes.";
+    }
+};
+
+export const generateGeneralAssessmentNote = async (scores: PillarScores): Promise<string> => {
+    const overallMaturity = calculateOverallMaturity(scores);
+    
+    let scoresText = `Maturidade Geral: ${overallMaturity}%\n`;
+    for (const pillar of PILLARS) {
+        const pillarName = PILLAR_DATA[pillar].name;
+        const score = calculatePillarScore(scores[pillar].responses);
+        const notes = scores[pillar].notes;
+        scoresText += `- ${pillarName}: ${score}/100 (Notas: ${notes || 'Nenhuma nota'})\n`;
+    }
+
+    const prompt = `Você é um consultor sênior de vendas B2B.
+Analise os resultados abaixo de uma avaliação de maturidade comercial e escreva uma "Nota Geral" sintética e estratégica.
+A nota deve ter entre 2 a 4 frases, resumindo a situação atual da empresa e a prioridade imediata.
+Evite formatação complexa como listas. Seja direto e perspicaz. Use Português do Brasil.
+
+Dados da Avaliação:
+${scoresText}
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text || "Não foi possível gerar a nota.";
+    } catch (error) {
+        console.error("Error calling Gemini API for notes:", error);
+        return "Erro ao gerar nota com IA.";
     }
 };

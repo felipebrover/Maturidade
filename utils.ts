@@ -1,5 +1,6 @@
+
 import { Pillar, type Assessment, type PillarScores } from './types';
-import { PILLARS } from './constants';
+import { PILLARS, PILLAR_WEIGHTS } from './constants';
 
 export const calculatePillarScore = (responses: number[]): number => {
     if (!responses || responses.length === 0) return 0;
@@ -10,12 +11,23 @@ export const calculatePillarScore = (responses: number[]): number => {
 
 export const calculateOverallMaturity = (scores: PillarScores): number => {
     if (!scores) return 0;
-    const totalPillarScores = PILLARS.reduce((acc, pillar) => {
+    
+    // Premium Elite Weighted Calculation
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    for (const pillar of PILLARS) {
         const pillarScore = calculatePillarScore(scores[pillar].responses);
-        return acc + pillarScore;
-    }, 0);
-    // Overall maturity is the average of the 7 pillar scores
-    return Math.round(totalPillarScores / PILLARS.length);
+        const weight = PILLAR_WEIGHTS[pillar] || 0; // Fallback to 0 if weight not found
+        
+        weightedSum += pillarScore * weight;
+        totalWeight += weight;
+    }
+
+    // Ensure we divide by total weight (should be close to 1, but good for safety)
+    if (totalWeight === 0) return 0;
+    
+    return Math.round(weightedSum / totalWeight);
 };
 
 export const formatDate = (isoString: string): string => {

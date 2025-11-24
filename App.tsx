@@ -15,8 +15,8 @@ interface DataContextType {
     login: (username: string, password: string) => boolean;
     logout: () => void;
     setActiveClientId: (id: string | null) => void;
-    addAssessment: (clientId: string, scores: PillarScores) => void;
-    updateAssessment: (clientId: string, assessmentId: string, scores: PillarScores) => void;
+    addAssessment: (clientId: string, scores: PillarScores, generalNote?: string) => void;
+    updateAssessment: (clientId: string, assessmentId: string, scores: PillarScores, generalNote?: string) => void;
     deleteAssessment: (clientId: string, assessmentId: string) => void;
     addClient: (name: string) => void;
     updateClient: (clientId: string, data: Partial<Client>) => void;
@@ -28,6 +28,7 @@ interface DataContextType {
     addClientInfoQuestion: (clientId: string, sectionId: ClientInfoSectionId, question: string) => void;
     deleteClientInfoQuestion: (clientId: string, sectionId: ClientInfoSectionId, questionId: string) => void;
     addClientInfoAttachment: (clientId: string, sectionId: ClientInfoSectionId, questionId: string, file: File) => Promise<void>;
+    addClientInfoLink: (clientId: string, sectionId: ClientInfoSectionId, questionId: string, name: string, url: string) => void;
     deleteClientInfoAttachment: (clientId: string, sectionId: ClientInfoSectionId, questionId: string, attachmentId: string) => void;
     addChatSession: (clientId: string) => ChatSession;
     updateChatSession: (clientId: string, sessionId: string, updatedData: Partial<ChatSession>) => void;
@@ -114,12 +115,12 @@ const App: React.FC = () => {
             // --- END NEW CLIENTS LOADING LOGIC ---
 
 
-            const storedUsers = localStorage.getItem('bslabs_users');
+            const storedUsers = localStorage.getItem('bslabs_users_v3');
              if (storedUsers) {
                 setUsers(JSON.parse(storedUsers));
             } else {
                 setUsers(INITIAL_USERS);
-                localStorage.setItem('bslabs_users', JSON.stringify(INITIAL_USERS));
+                localStorage.setItem('bslabs_users_v3', JSON.stringify(INITIAL_USERS));
             }
 
             const storedSessionUser = localStorage.getItem('bslabs_currentUser');
@@ -145,7 +146,7 @@ const App: React.FC = () => {
             setClients(defaultClients);
             localStorage.setItem('bslabs_clients', JSON.stringify(defaultClients));
             setUsers(INITIAL_USERS);
-            localStorage.setItem('bslabs_users', JSON.stringify(INITIAL_USERS));
+            localStorage.setItem('bslabs_users_v3', JSON.stringify(INITIAL_USERS));
         }
         setIsInitialized(true);
     }, []);
@@ -157,7 +158,7 @@ const App: React.FC = () => {
 
     const persistUsers = useCallback((updatedUsers: User[]) => {
         setUsers(updatedUsers);
-        localStorage.setItem('bslabs_users', JSON.stringify(updatedUsers));
+        localStorage.setItem('bslabs_users_v3', JSON.stringify(updatedUsers));
     }, []);
     
     const persistActiveClient = useCallback((id: string | null) => {
@@ -214,7 +215,7 @@ const App: React.FC = () => {
         persistUsers(users.filter(u => u.id !== userId));
     }, [users, persistUsers]);
 
-    const addAssessment = useCallback((clientId: string, newScores: PillarScores) => {
+    const addAssessment = useCallback((clientId: string, newScores: PillarScores, generalNote?: string) => {
         const updatedClients = clients.map(client => {
             if (client.id === clientId) {
                 const newAssessment: Assessment = {
@@ -222,6 +223,7 @@ const App: React.FC = () => {
                     date: new Date().toISOString(),
                     scores: newScores,
                     overallMaturity: calculateOverallMaturity(newScores),
+                    generalNote: generalNote || ''
                 };
                 return {
                     ...client,
@@ -233,7 +235,7 @@ const App: React.FC = () => {
         persistClients(updatedClients);
     }, [clients, persistClients]);
     
-    const updateAssessment = useCallback((clientId: string, assessmentId: string, updatedScores: PillarScores) => {
+    const updateAssessment = useCallback((clientId: string, assessmentId: string, updatedScores: PillarScores, generalNote?: string) => {
         const updatedClients = clients.map(client => {
             if (client.id === clientId) {
                 const updatedAssessments = client.assessments.map(assessment => {
@@ -242,6 +244,7 @@ const App: React.FC = () => {
                             ...assessment,
                             scores: updatedScores,
                             overallMaturity: calculateOverallMaturity(updatedScores),
+                            generalNote: generalNote !== undefined ? generalNote : assessment.generalNote
                         };
                     }
                     return assessment;
@@ -345,16 +348,22 @@ const App: React.FC = () => {
                 o.keyResults.forEach((k: KeyResult) => {
                     let totalInitiativeProgress = 0;
                     k.initiatives.forEach((i: Initiative) => {
+                        // Level 4: Actions
                         const completedActions = i.actions.filter((a: Action) => a.isCompleted).length;
+                        // Update Initiative Progress based on Actions
                         i.progress = i.actions.length > 0 ? Math.round((completedActions / i.actions.length) * 100) : 0;
+                        
                         totalInitiativeProgress += i.progress;
                     });
+                    // Update KR Progress based on Initiatives
                     k.progress = k.initiatives.length > 0 ? Math.round(totalInitiativeProgress / k.initiatives.length) : 0;
                     totalKeyResultProgress += k.progress;
                 });
+                // Update Objective Progress based on Key Results
                 o.progress = o.keyResults.length > 0 ? Math.round(totalKeyResultProgress / o.keyResults.length) : 0;
                 totalObjectiveProgress += o.progress;
             });
+            // Update Journey Progress based on Objectives
             j.progress = j.objectives.length > 0 ? Math.round(totalObjectiveProgress / j.objectives.length) : 0;
         });
         return newClient;
@@ -362,6 +371,7 @@ const App: React.FC = () => {
 
     const findAndMapClient = (clientId: string, callback: (client: Client) => Client) => {
         const updatedClients = clients.map(c => c.id === clientId ? callback(c) : c);
+        // Immediately recalculate progress after any change to the planning structure
         const finalClients = updatedClients.map(c => c.id === clientId ? recalculateProgressForClient(c) : c);
         persistClients(finalClients);
     };
@@ -514,6 +524,32 @@ const App: React.FC = () => {
         const updatedClients = clients.map(client => {
             if (client.id === clientId) {
                 const newClientInfo = JSON.parse(JSON.stringify(client.clientInfo));
+                const newQuestions = newClientInfo[sectionId].questions.map((q: ClientInfoQuestion) => {
+                    if (q.id === questionId) {
+                        const attachments = [...(q.attachments || []), newAttachment];
+                        return { ...q, attachments };
+                    }
+                    return q;
+                });
+                newClientInfo[sectionId] = { ...newClientInfo[sectionId], questions: newQuestions };
+                return { ...client, clientInfo: newClientInfo };
+            }
+            return client;
+        });
+        persistClients(updatedClients);
+    }, [clients, persistClients]);
+
+    const addClientInfoLink = useCallback((clientId: string, sectionId: ClientInfoSectionId, questionId: string, name: string, url: string) => {
+        const updatedClients = clients.map(client => {
+            if (client.id === clientId) {
+                const newClientInfo = JSON.parse(JSON.stringify(client.clientInfo));
+                const newAttachment: Attachment = {
+                    id: `link-${new Date().getTime()}`,
+                    name: name,
+                    type: 'link',
+                    data: url
+                };
+                
                 const newQuestions = newClientInfo[sectionId].questions.map((q: ClientInfoQuestion) => {
                     if (q.id === questionId) {
                         const attachments = [...(q.attachments || []), newAttachment];
@@ -696,6 +732,7 @@ const App: React.FC = () => {
         addClientInfoQuestion,
         deleteClientInfoQuestion,
         addClientInfoAttachment,
+        addClientInfoLink,
         deleteClientInfoAttachment,
         addChatSession,
         updateChatSession,

@@ -1,3 +1,4 @@
+
 export enum Pillar {
     STRATEGY = 'strategy',
     GOALS = 'goals',
@@ -21,6 +22,7 @@ export interface Assessment {
   date: string; // ISO string
   scores: PillarScores;
   overallMaturity: number; // This will be calculated
+  generalNote?: string; // New field for general observation
 }
 
 export interface Deliverable {
@@ -43,9 +45,10 @@ export interface ClientInfoQuestion {
     answer: string;
     isDefault?: boolean;
     attachments?: Attachment[];
+    level?: 'Essencial' | 'Profissional' | 'Elite';
 }
 
-export type ClientInfoSectionId = 'summary' | 'basic' | 'metrics' | 'funnel' | 'competitors' | 'materials' | 'background' | 'goals' | 'contacts';
+export type ClientInfoSectionId = 'summary' | 'metrics' | 'funnel' | 'competitors' | 'materials' | 'background' | 'goals' | 'contacts';
 
 export interface ClientInfoSectionData {
     title: string;
@@ -127,4 +130,17 @@ export interface User {
   role: 'admin' | 'client';
   clientId?: string; // Only if role is 'client'
   accessibleViews?: View[];
+}
+
+// New Interface for Detailed Questions
+export interface MaturityQuestion {
+    id: string;
+    question: string;
+    options: {
+        0: string;
+        25: string;
+        50: string;
+        75: string;
+        100: string;
+    };
 }

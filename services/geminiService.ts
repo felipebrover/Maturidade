@@ -129,13 +129,19 @@ export const generateGeneralAssessmentNote = async (scores: PillarScores): Promi
         const pillarName = PILLAR_DATA[pillar].name;
         const score = calculatePillarScore(scores[pillar].responses);
         const notes = scores[pillar].notes;
-        scoresText += `- ${pillarName}: ${score}/100 (Notas: ${notes || 'Nenhuma nota'})\n`;
+        scoresText += `- ${pillarName}: ${score}/100 (Notas do Pilar: ${notes || 'Nenhuma nota'})\n`;
     }
 
     const prompt = `Você é um consultor sênior de vendas B2B.
-Analise os resultados abaixo de uma avaliação de maturidade comercial e escreva uma "Nota Geral" sintética e estratégica.
-A nota deve ter entre 2 a 4 frases, resumindo a situação atual da empresa e a prioridade imediata.
-Evite formatação complexa como listas. Seja direto e perspicaz. Use Português do Brasil.
+Analise os resultados abaixo de uma avaliação de maturidade comercial completa.
+Sua tarefa é escrever uma "Nota Geral Estratégica" sobre o momento atual da empresa.
+
+Diretrizes:
+- Escreva de 2 a 4 frases curtas e impactantes.
+- Sintetize a situação atual baseada nos pilares com notas mais altas e mais baixas.
+- Aponte a prioridade #1 para o próximo ciclo.
+- Use tom profissional e direto (Português do Brasil).
+- NÃO use listas, apenas texto corrido.
 
 Dados da Avaliação:
 ${scoresText}

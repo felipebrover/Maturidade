@@ -15,8 +15,8 @@ interface DataContextType {
     login: (username: string, password: string) => boolean;
     logout: () => void;
     setActiveClientId: (id: string | null) => void;
-    addAssessment: (clientId: string, scores: PillarScores, generalNote?: string) => void;
-    updateAssessment: (clientId: string, assessmentId: string, scores: PillarScores, generalNote?: string) => void;
+    addAssessment: (clientId: string, scores: PillarScores, generalNote?: string, date?: string) => void;
+    updateAssessment: (clientId: string, assessmentId: string, scores: PillarScores, generalNote?: string, date?: string) => void;
     deleteAssessment: (clientId: string, assessmentId: string) => void;
     addClient: (name: string) => void;
     updateClient: (clientId: string, data: Partial<Client>) => void;
@@ -215,12 +215,18 @@ const App: React.FC = () => {
         persistUsers(users.filter(u => u.id !== userId));
     }, [users, persistUsers]);
 
-    const addAssessment = useCallback((clientId: string, newScores: PillarScores, generalNote?: string) => {
+    const addAssessment = useCallback((clientId: string, newScores: PillarScores, generalNote?: string, date?: string) => {
         const updatedClients = clients.map(client => {
             if (client.id === clientId) {
+                // Determine the date. If 'date' is provided (YYYY-MM-DD), use it.
+                // We append T09:00:00 to ensure it doesn't shift due to timezone when parsing back.
+                const finalDate = date 
+                    ? new Date(`${date}T12:00:00`).toISOString() 
+                    : new Date().toISOString();
+
                 const newAssessment: Assessment = {
                     id: `assessment-${client.id}-${new Date().getTime()}`,
-                    date: new Date().toISOString(),
+                    date: finalDate,
                     scores: newScores,
                     overallMaturity: calculateOverallMaturity(newScores),
                     generalNote: generalNote || ''
@@ -235,13 +241,17 @@ const App: React.FC = () => {
         persistClients(updatedClients);
     }, [clients, persistClients]);
     
-    const updateAssessment = useCallback((clientId: string, assessmentId: string, updatedScores: PillarScores, generalNote?: string) => {
+    const updateAssessment = useCallback((clientId: string, assessmentId: string, updatedScores: PillarScores, generalNote?: string, date?: string) => {
         const updatedClients = clients.map(client => {
             if (client.id === clientId) {
                 const updatedAssessments = client.assessments.map(assessment => {
                     if (assessment.id === assessmentId) {
+                         const finalDate = date 
+                            ? new Date(`${date}T12:00:00`).toISOString() 
+                            : assessment.date;
                         return {
                             ...assessment,
+                            date: finalDate,
                             scores: updatedScores,
                             overallMaturity: calculateOverallMaturity(updatedScores),
                             generalNote: generalNote !== undefined ? generalNote : assessment.generalNote

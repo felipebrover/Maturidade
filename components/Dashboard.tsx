@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useData } from '../App';
 import {
     LayoutDashboard, BarChart3, Clock, Briefcase, BotMessageSquare, Library, LogOut, Menu, X, Plus, ChevronsUpDown, Check, FileDown, Rocket, Target, Minus, AlertTriangle, Building, Package, Megaphone, Handshake, Users, SlidersHorizontal, Building2, Compass, Goal, Network, Workflow, BarChartBig, HandCoins, Database, Edit, ChevronDown, ChevronUp, Info, Sheet,
-    UploadCloud, Trash2, FileText, ClipboardCheck, User, Paperclip, File as FileIcon, Pencil, SendHorizonal, BrainCircuit, CheckSquare, Square, MessageSquarePlus, Settings, Grip, CircleDot, Milestone, ListChecks, DownloadCloud, Star, ShieldCheck, Gem, Link as LinkIcon, ExternalLink, ChevronRight, ListTodo, Activity, Sparkles
+    UploadCloud, Trash2, FileText, ClipboardCheck, User, Paperclip, File as FileIcon, Pencil, SendHorizonal, BrainCircuit, CheckSquare, Square, MessageSquarePlus, Settings, Grip, CircleDot, Milestone, ListChecks, DownloadCloud, Star, ShieldCheck, Gem, Link as LinkIcon, ExternalLink, ChevronRight, ListTodo, Activity, Sparkles, Lightbulb, Calendar, TrendingUp, TrendingDown
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { PILLAR_DATA, PILLARS, INITIAL_PILLAR_SCORE, PILLAR_QUESTIONS, CLIENT_INFO_SECTIONS_ORDER, CONSULTING_JOURNEY_TEMPLATE } from '../constants';
@@ -113,9 +112,9 @@ const Dashboard: React.FC = () => {
 
     const handleCloseCreateModal = () => setCreateModalOpen(false);
 
-    const handleCreateNewAssessment = (scores: PillarScores, generalNote?: string) => {
+    const handleCreateNewAssessment = (scores: PillarScores, generalNote?: string, date?: string) => {
         if (activeClient) {
-            addAssessment(activeClient.id, scores, generalNote);
+            addAssessment(activeClient.id, scores, generalNote, date);
             setCreateModalOpen(false);
             setCurrentView('timeline');
         }
@@ -395,7 +394,6 @@ const DeleteClientModal: React.FC<{ client: Client; onClose: () => void; onConfi
     );
 };
 
-
 const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSidebarOpen }) => {
     const { clients, activeClient, setActiveClientId, addClient, updateClient, deleteClient, currentUser } = useData();
     const [isDropdownOpen, setDropdownOpen] = useState(false);
@@ -439,8 +437,6 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
 
         const escapeCSV = (field: string | number) => {
             const str = String(field);
-            // If the field contains a comma, double quote, or newline, wrap it in double quotes.
-            // Also, double up any existing double quotes.
             if (str.includes(',') || str.includes('"') || str.includes('\n')) {
                 return `"${str.replace(/"/g, '""')}"`;
             }
@@ -477,7 +473,6 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
         });
 
         const csvContent = [headers, ...rows].join('\n');
-        // Add BOM for Excel compatibility with UTF-8
         const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -652,56 +647,6 @@ const Header: React.FC<{ setSidebarOpen: (isOpen: boolean) => void }> = ({ setSi
     );
 };
 
-// Dashboard Home View
-const DashboardHome: React.FC<{ onPillarClick: (pillar: Pillar) => void; onNewAssessmentClick: () => void; }> = ({ onPillarClick, onNewAssessmentClick }) => {
-    const { activeClient, currentUser } = useData();
-
-    const latestAssessment = useMemo(() => {
-        if (!activeClient || activeClient.assessments.length === 0) return null;
-        return activeClient.assessments[activeClient.assessments.length - 1];
-    }, [activeClient]);
-
-    const previousAssessment = useMemo(() => {
-        if (!activeClient || activeClient.assessments.length < 2) return null;
-        return activeClient.assessments[activeClient.assessments.length - 2];
-    }, [activeClient]);
-    
-    if (!activeClient || !latestAssessment) {
-        return <NewClientOnboarding />;
-    }
-
-    const radarChartData = PILLARS.map(pillar => ({
-        subject: PILLAR_DATA[pillar].name.substring(0, 15) + (PILLAR_DATA[pillar].name.length > 15 ? '...' : ''),
-        A: calculatePillarScore(latestAssessment.scores[pillar].responses),
-        B: latestAssessment.scores[pillar].goal,
-        fullMark: 100,
-    }));
-
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-                <PillarMatrix 
-                    radarChartData={radarChartData}
-                    scores={latestAssessment.scores}
-                    previousScores={previousAssessment?.scores || null}
-                    onPillarClick={onPillarClick}
-                    onNewAssessmentClick={onNewAssessmentClick}
-                />
-            </div>
-            <div className="space-y-6">
-                <OverallMaturityCard 
-                    latestMaturity={latestAssessment.overallMaturity} 
-                    previousMaturity={previousAssessment?.overallMaturity || null}
-                />
-                <KeyChangesCard 
-                    latestScores={latestAssessment.scores}
-                    previousScores={previousAssessment?.scores || null}
-                />
-            </div>
-        </div>
-    );
-};
-
 const NewClientOnboarding: React.FC = () => {
     const { activeClient, addAssessment, currentUser } = useData();
     const [isCreating, setIsCreating] = useState(false);
@@ -737,8 +682,6 @@ const NewClientOnboarding: React.FC = () => {
     );
 };
 
-
-// PillarMatrix, OverallMaturityCard, etc.
 const PillarMatrix: React.FC<{
     radarChartData: any[];
     scores: PillarScores;
@@ -830,124 +773,88 @@ const PillarMatrix: React.FC<{
     );
 };
 
-const OverallMaturityCard: React.FC<{ latestMaturity: number; previousMaturity: number | null; }> = ({ latestMaturity, previousMaturity }) => {
-    const diff = previousMaturity !== null ? latestMaturity - previousMaturity : null;
-    const progress = Math.min(latestMaturity, 100);
-
+const OverallMaturityCard: React.FC<{ latestMaturity: number; previousMaturity: number | null }> = ({ latestMaturity, previousMaturity }) => {
+    const diff = previousMaturity !== null ? latestMaturity - previousMaturity : 0;
     return (
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
-            <h3 className="text-lg font-bold text-white mb-1">Maturidade Geral</h3>
-            <p className="text-sm text-gray-400 mb-4">Média Ponderada dos 7 pilares.</p>
-            <div className="flex items-baseline gap-3 mb-4">
-                <p className="text-6xl font-bold text-indigo-400">{latestMaturity}<span className="text-3xl">%</span></p>
-                {diff !== null && (
-                     <div className={`flex items-center gap-1 text-base font-semibold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-500'}`}>
-                        {diff > 0 ? <ChevronUp size={20} /> : diff < 0 ? <ChevronDown size={20} /> : <Minus size={20} />}
-                        {diff}%
-                    </div>
-                )}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6 flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Gem size={100} className="text-indigo-400" />
             </div>
-             <div className="w-full bg-gray-700 rounded-full h-2.5">
-                <div className="bg-indigo-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
-            </div>
+            <h3 className="text-lg font-medium text-gray-300 mb-2">Maturidade Geral</h3>
+            <div className="text-6xl font-bold text-white mb-2">{latestMaturity}%</div>
+            {previousMaturity !== null && (
+                <div className={`flex items-center gap-1 text-sm font-medium ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {diff >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                    {diff > 0 ? '+' : ''}{diff}% vs. anterior
+                </div>
+            )}
         </div>
     );
 };
 
-const KeyChangesCard: React.FC<{ latestScores: PillarScores; previousScores: PillarScores | null; }> = ({ latestScores, previousScores }) => {
-     if (!previousScores) {
-        return (
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6 text-center">
-                <Info className="mx-auto w-10 h-10 text-blue-400 mb-4" />
-                <h3 className="text-lg font-bold text-white mb-2">Acompanhe a Evolução</h3>
-                <p className="text-sm text-gray-400">
-                    Realize uma segunda avaliação para visualizar os principais avanços e pontos de atenção aqui.
-                </p>
-            </div>
-        );
-    }
+const KeyChangesCard: React.FC<{ latestScores: PillarScores; previousScores: PillarScores | null }> = ({ latestScores, previousScores }) => {
+    if (!previousScores) return null;
 
     const changes = PILLARS.map(pillar => {
-        const latest = calculatePillarScore(latestScores[pillar].responses);
+        const current = calculatePillarScore(latestScores[pillar].responses);
         const previous = calculatePillarScore(previousScores[pillar].responses);
-        return { pillar, diff: latest - previous };
-    }).sort((a, b) => b.diff - a.diff);
-
-    const biggestGain = changes[0];
-    const biggestLoss = changes[changes.length - 1];
+        return { pillar, change: current - previous };
+    }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 3);
 
     return (
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Destaques da Evolução</h3>
-            <div className="space-y-4">
-                <div>
-                    <p className="text-sm font-semibold text-green-400 mb-1">Maior Avanço</p>
-                    <div className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg">
-                        <span className="font-medium text-sm">{PILLAR_DATA[biggestGain.pillar].name}</span>
-                        <span className="font-bold text-green-400">+{biggestGain.diff} pts</span>
+            <h3 className="text-lg font-bold text-white mb-4">Principais Mudanças</h3>
+            <div className="space-y-3">
+                {changes.map(({ pillar, change }) => (
+                    <div key={pillar} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-300">{PILLAR_DATA[pillar].name}</span>
+                        <span className={`text-sm font-bold ${change > 0 ? 'text-green-400' : change < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                            {change > 0 ? '+' : ''}{change}
+                        </span>
                     </div>
-                </div>
-                <div>
-                    <p className="text-sm font-semibold text-red-400 mb-1">Ponto de Atenção</p>
-                     <div className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg">
-                        <span className="font-medium text-sm">{PILLAR_DATA[biggestLoss.pillar].name}</span>
-                        <span className="font-bold text-red-400">{biggestLoss.diff} pts</span>
-                    </div>
-                </div>
+                ))}
             </div>
         </div>
     );
 };
 
-
-// Evolution View
 const EvolutionView: React.FC = () => {
     const { activeClient } = useData();
-    if (!activeClient || activeClient.assessments.length < 2) {
-        return (
-             <div className="text-center p-8 bg-gray-800/30 rounded-lg">
-                <BarChart3 className="mx-auto w-12 h-12 text-indigo-400 mb-4" />
-                <h2 className="text-xl font-bold mb-2">Dados Insuficientes para Análise</h2>
-                <p className="text-gray-400">É necessário ter pelo menos duas avaliações para visualizar a evolução.</p>
-            </div>
-        );
-    }
+    if (!activeClient) return null;
 
-    const evolutionData = activeClient.assessments.map(assessment => {
-        const dataPoint: { name: string; [key: string]: string | number } = {
-            name: formatDate(assessment.date),
-            "Maturidade Geral": assessment.overallMaturity,
+    const data = activeClient.assessments.map(assessment => {
+        const entry: any = {
+            date: formatDate(assessment.date),
+            Maturidade: assessment.overallMaturity,
         };
         PILLARS.forEach(pillar => {
-            dataPoint[PILLAR_DATA[pillar].name] = calculatePillarScore(assessment.scores[pillar].responses);
+            entry[PILLAR_DATA[pillar].name] = calculatePillarScore(assessment.scores[pillar].responses);
         });
-        return dataPoint;
+        return entry;
     });
 
     return (
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6 print-bg-white print-border-gray">
-            <h2 className="text-2xl font-bold mb-1 text-white print-text-black">Evolução da Maturidade</h2>
-            <p className="text-gray-400 mb-6 print-text-black">Comparativo da pontuação geral e por pilar ao longo do tempo.</p>
-            <div className="h-96 print-bg-white">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Evolução da Maturidade</h2>
+            <div className="h-96 w-full print-bg-white">
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={evolutionData}>
-                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-                        <XAxis dataKey="name" tick={{ fill: '#a5b4fc', fontSize: 12 }} className="print-text-black" />
-                        <YAxis domain={[0, 100]} tick={{ fill: '#a5b4fc', fontSize: 12 }} className="print-text-black" />
-                         <Tooltip
-                            contentStyle={{
-                                backgroundColor: '#1f2937',
-                                border: '1px solid #4f46e5',
-                                borderRadius: '0.5rem',
-                                color: '#e5e7eb',
-                                fontSize: '12px'
-                            }}
-                            labelStyle={{ color: '#c7d2fe', fontWeight: 'bold' }}
-                        />
-                        <Legend wrapperStyle={{fontSize: "12px"}}/>
-                        <Line type="monotone" dataKey="Maturidade Geral" stroke="#eab308" strokeWidth={3} />
-                        {PILLARS.map(pillar => (
-                            <Line key={pillar} type="monotone" dataKey={PILLAR_DATA[pillar].name} stroke={PILLAR_DATA[pillar].color} strokeWidth={1.5} opacity={0.7} />
+                    <LineChart data={data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis dataKey="date" stroke="#9ca3af" />
+                        <YAxis domain={[0, 100]} stroke="#9ca3af" />
+                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '0.5rem', color: '#fff' }} />
+                        <Legend />
+                        <Line type="monotone" dataKey="Maturidade" stroke="#ffffff" strokeWidth={3} dot={{ r: 6 }} />
+                        {PILLARS.map((pillar, index) => (
+                            <Line 
+                                key={pillar} 
+                                type="monotone" 
+                                dataKey={PILLAR_DATA[pillar].name} 
+                                stroke={PILLAR_DATA[pillar].color} 
+                                strokeWidth={1} 
+                                dot={false} 
+                                opacity={0.6}
+                            />
                         ))}
                     </LineChart>
                 </ResponsiveContainer>
@@ -956,1489 +863,462 @@ const EvolutionView: React.FC = () => {
     );
 };
 
-
-// Timeline View
-const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void; onNewAssessmentClick: () => void; }> = ({ onStartEditing, onNewAssessmentClick }) => {
-    const { activeClient, currentUser, deleteAssessment } = useData();
-    const [assessmentToDelete, setAssessmentToDelete] = useState<Assessment | null>(null);
-
-    if (!activeClient || activeClient.assessments.length === 0) {
-        return (
-             <div className="text-center p-8 bg-gray-800/30 rounded-lg">
-                <Clock className="mx-auto w-12 h-12 text-indigo-400 mb-4" />
-                <h2 className="text-xl font-bold mb-2">Nenhuma Avaliação Encontrada</h2>
-                <p className="text-gray-400 mb-6">Crie a primeira avaliação para iniciar a timeline.</p>
-                {currentUser?.role === 'admin' && (
-                     <button
-                        onClick={onNewAssessmentClick}
-                        className="flex items-center mx-auto justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Criar Primeira Avaliação
-                    </button>
-                )}
-            </div>
-        );
-    }
-    
-    const handleConfirmDelete = () => {
-        if (activeClient && assessmentToDelete) {
-            deleteAssessment(activeClient.id, assessmentToDelete.id);
-            setAssessmentToDelete(null);
-        }
-    };
-
-    // sort assessments from newest to oldest
-    const sortedAssessments = [...activeClient.assessments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-white">Timeline de Avaliações</h2>
-                    <p className="text-gray-400">Histórico de todas as avaliações de maturidade realizadas.</p>
-                </div>
-                {currentUser?.role === 'admin' && (
-                    <button
-                        onClick={onNewAssessmentClick}
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Nova Avaliação
-                    </button>
-                )}
-            </div>
-            <div className="space-y-8">
-                {sortedAssessments.map((assessment, index) => (
-                    <AssessmentCard 
-                        key={assessment.id} 
-                        assessment={assessment} 
-                        isLatest={index === 0} 
-                        onEdit={() => onStartEditing(assessment)}
-                        onDelete={() => setAssessmentToDelete(assessment)}
-                    />
-                ))}
-            </div>
-            {assessmentToDelete && (
-                <ConfirmationModal
-                    title="Confirmar Exclusão de Avaliação"
-                    message={`Tem certeza de que deseja excluir a avaliação de ${formatDate(assessmentToDelete.date)}? Esta ação não pode ser desfeita.`}
-                    onConfirm={handleConfirmDelete}
-                    onClose={() => setAssessmentToDelete(null)}
-                    confirmText="Excluir Avaliação"
-                />
-            )}
-        </div>
-    );
-};
-
-const AssessmentCard: React.FC<{ assessment: Assessment; isLatest: boolean; onEdit: () => void; onDelete: () => void; }> = ({ assessment, isLatest, onEdit, onDelete }) => {
-    const [isExpanded, setIsExpanded] = useState(isLatest); // Expand latest by default
-    const { currentUser } = useData();
-    return (
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 overflow-hidden">
-            <div className="p-4 flex justify-between items-center cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-indigo-900/50">
-                        <span className="text-3xl font-bold text-indigo-400">{assessment.overallMaturity}</span>
-                        <span className="text-xs text-gray-400">Geral</span>
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-white">Avaliação de {formatDate(assessment.date)}</h3>
-                        {isLatest && <span className="text-xs font-semibold bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full">Mais Recente</span>}
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    {currentUser?.role === 'admin' && (
-                        <>
-                            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
-                                <Edit className="w-5 h-5 text-gray-400" />
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-2 rounded-full hover:bg-red-900/50 transition-colors">
-                                <Trash2 className="w-5 h-5 text-red-400" />
-                            </button>
-                        </>
-                    )}
-                    <ChevronDown className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                </div>
-            </div>
-            {isExpanded && (
-                <div className="p-4 border-t border-indigo-800/30">
-                    {assessment.generalNote && (
-                        <div className="mb-6 bg-indigo-900/20 p-4 rounded-lg border border-indigo-500/30">
-                            <h4 className="text-sm font-bold text-indigo-400 mb-2 uppercase tracking-wide">Nota Geral & Estratégia</h4>
-                            <p className="text-gray-300 italic">"{assessment.generalNote}"</p>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {PILLARS.map(pillar => {
-                             const pillarScore = calculatePillarScore(assessment.scores[pillar].responses);
-                             const pillarGoal = assessment.scores[pillar].goal;
-                             const Icon = ICON_MAP[pillar];
-                             return (
-                                 <div key={pillar} className="bg-gray-900/50 p-3 rounded-lg">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <Icon className="w-4 h-4" style={{ color: PILLAR_DATA[pillar].color }} />
-                                            <p className="text-sm font-semibold">{PILLAR_DATA[pillar].name}</p>
-                                        </div>
-                                        <span className="text-lg font-bold" style={{ color: PILLAR_DATA[pillar].color }}>
-                                            {pillarScore}
-                                            <span className="text-xs text-gray-500">/{pillarGoal}</span>
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-gray-400 italic">"{assessment.scores[pillar].notes || 'Nenhuma nota.'}"</p>
-                                 </div>
-                             );
-                        })}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-// Meeting Prep View
-const MeetingPrepView: React.FC = () => {
-    const { activeClient, updateClientDiagnosticSummary } = useData();
-    const [summary, setSummary] = useState(activeClient?.diagnosticSummary || '');
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleGenerateSummary = useCallback(async () => {
-        if (!activeClient) return;
-        setIsLoading(true);
-        try {
-            const result = await generateExecutiveSummary(activeClient);
-            setSummary(result);
-            updateClientDiagnosticSummary(activeClient.id, result);
-        } catch (error) {
-            const errorMessage = 'Ocorreu um erro ao gerar o resumo. Tente novamente.';
-            setSummary(errorMessage);
-            updateClientDiagnosticSummary(activeClient.id, errorMessage);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [activeClient, updateClientDiagnosticSummary]);
-
-    if (!activeClient || activeClient.assessments.length === 0) {
-        return (
-             <div className="text-center p-8 bg-gray-800/30 rounded-lg">
-                <BotMessageSquare className="mx-auto w-12 h-12 text-indigo-400 mb-4" />
-                <h2 className="text-xl font-bold mb-2">Gere seu Diagnóstico com IA</h2>
-                <p className="text-gray-400">Realize uma avaliação para que a IA possa gerar um resumo executivo e pontos de discussão.</p>
-            </div>
-        );
-    }
-    
-    return (
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
-            <div className="flex justify-between items-start mb-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-white">Diagnóstico com IA</h2>
-                    <p className="text-gray-400">Resumo executivo gerado pela IA para a próxima conversa com o cliente.</p>
-                </div>
-                <button onClick={handleGenerateSummary} disabled={isLoading} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors disabled:opacity-50">
-                    {isLoading ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                        <BotMessageSquare className="h-4 w-4" />
-                    )}
-                    {isLoading ? 'Gerando...' : (summary ? 'Gerar Novo Diagnóstico' : 'Gerar Diagnóstico')}
-                </button>
-            </div>
-            <div className="bg-gray-900/50 p-4 rounded-lg min-h-[200px]">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-full text-gray-400">
-                        <p>Analisando dados e gerando insights...</p>
-                    </div>
-                ) : (
-                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{summary || 'Clique em "Gerar Diagnóstico" para ver um resumo da situação atual do cliente.'}</p>
-                )}
-            </div>
-        </div>
-    );
-};
-
-// Helper types and functions for the new DeliverableViewerModal
-interface TocItem {
-  id: string;
-  text: string;
-  level: number;
-}
-
-const slugify = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '') // remove non-word chars
-    .replace(/\s+/g, '-') // replace spaces with -
-    .replace(/--+/g, '-') // replace multiple - with single -
-    .trim();
-
-
-const MarkdownContentRenderer: React.FC<{ content: string }> = React.memo(({ content }) => {
-    // Process simple inline markdown like **bold** and *italic*
-    const processInlineFormatting = (text: string): React.ReactNode => {
-        const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|_.*?_)/g);
-        return parts.filter(part => part).map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={i}>{part.slice(2, -2)}</strong>;
-            }
-            if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
-                return <em key={i}>{part.slice(1, -1)}</em>;
-            }
-            return part;
-        });
-    };
-
-    const renderedContent = useMemo(() => {
-        // Split by blank lines to handle paragraphs and lists correctly
-        const blocks = content.split(/\n\s*\n/);
-        const elements: React.ReactNode[] = [];
-
-        blocks.forEach((block, blockIndex) => {
-            const trimmedBlock = block.trim();
-            if (!trimmedBlock) return;
-
-            // Horizontal Rule
-            if (trimmedBlock === '---') {
-                elements.push(<hr key={`hr-${blockIndex}`} className="my-6 border-gray-600" />);
-                return;
-            }
-
-            // Headings
-            const headingMatch = trimmedBlock.match(/^(#{1,6})\s+(.*)/);
-            if (headingMatch) {
-                const level = headingMatch[1].length;
-                const text = headingMatch[2].trim();
-                const id = slugify(`${text}-${blockIndex}`);
-                const Tag = `h${level}` as React.ElementType;
-                const textSize = ['text-3xl', 'text-2xl', 'text-xl', 'text-lg', 'text-base', 'text-sm'][level - 1];
-                elements.push(
-                    <Tag key={id} id={id} className={`font-bold mt-8 mb-3 text-white ${textSize} heading-marker`}>
-                        {text}
-                    </Tag>
-                );
-                return;
-            }
-
-            // Lists
-            if (trimmedBlock.startsWith('- ')) {
-                const listItems = trimmedBlock.split('\n').map((line, lineIndex) => (
-                    <li key={`li-${blockIndex}-${lineIndex}`} className="mb-2">
-                        {processInlineFormatting(line.replace(/^- /, '').trim())}
-                    </li>
-                ));
-                elements.push(<ul key={`ul-${blockIndex}`} className="list-disc pl-5 mb-4">{listItems}</ul>);
-                return;
-            }
-
-            // Paragraphs
-            elements.push(
-                <p key={`p-${blockIndex}`} className="mb-4 leading-relaxed">
-                    {processInlineFormatting(trimmedBlock.replace(/\n/g, ' '))}
-                </p>
-            );
-        });
-
-        return elements;
-    }, [content]);
-
-    return <div className="prose prose-invert max-w-none prose-p:text-gray-300 prose-headings:text-indigo-300">{renderedContent}</div>;
-});
-
-const DeliverableViewerModal: React.FC<{ deliverable: Deliverable; onClose: () => void; }> = ({ deliverable, onClose }) => {
-    const [toc, setToc] = useState<TocItem[]>([]);
-    const [activeTocId, setActiveTocId] = useState<string | null>(null);
-    const contentRef = useRef<HTMLDivElement>(null);
-    const observer = useRef<IntersectionObserver | null>(null);
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
-
-    // Parse content for Table of Contents
-    useEffect(() => {
-        const lines = deliverable.content.split('\n');
-        const headings: TocItem[] = [];
-        lines.forEach((line, index) => {
-            const match = line.match(/^(#{1,6})\s+(.*)/);
-            if (match) {
-                const level = match[1].length;
-                const text = match[2].trim();
-                // Use block index logic consistent with renderer for stable IDs
-                const blockContent = deliverable.content.split(/\n\s*\n/);
-                const blockIndex = blockContent.findIndex(b => b.includes(line));
-                headings.push({ id: slugify(`${text}-${blockIndex}`), text, level });
-            }
-        });
-        setToc(headings);
-    }, [deliverable.content]);
-
-    // Setup IntersectionObserver for active ToC highlighting
-    useEffect(() => {
-        if (observer.current) observer.current.disconnect();
-
-        const callback = (entries: IntersectionObserverEntry[]) => {
-            const visibleEntries = entries.filter(e => e.isIntersecting);
-            if (visibleEntries.length > 0) {
-                 setActiveTocId(visibleEntries[0].target.id);
-            }
-        };
-
-        observer.current = new IntersectionObserver(callback, {
-            root: contentRef.current,
-            threshold: 0.1,
-            rootMargin: '-20% 0px -80% 0px' // Highlight when top part is visible
-        });
-
-        const headings = contentRef.current?.querySelectorAll('h1, h2, h3, h4, h5, h6');
-        headings?.forEach(h => observer.current?.observe(h));
-
-        return () => observer.current?.disconnect();
-    }, [toc]); // Removed activeTocId to avoid re-binding unnecessarily
-
-    const scrollToId = (id: string) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-            setActiveTocId(id);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-gray-900 w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl border border-indigo-500/30 flex overflow-hidden">
-                {/* Sidebar for ToC */}
-                {toc.length > 0 && (
-                    <div className="w-64 bg-gray-800/50 border-r border-gray-700 p-4 overflow-y-auto hidden lg:block">
-                        <h3 className="text-sm font-bold text-gray-400 uppercase mb-4">Índice</h3>
-                        <nav className="space-y-1">
-                            {toc.map((item) => (
-                                <button
-                                    key={item.id}
-                                    onClick={() => scrollToId(item.id)}
-                                    className={`block w-full text-left text-sm py-1 px-2 rounded-md transition-colors truncate ${
-                                        activeTocId === item.id ? 'bg-indigo-600/20 text-indigo-300 border-l-2 border-indigo-500' : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                                    }`}
-                                    style={{ paddingLeft: `${(item.level - 1) * 0.75 + 0.5}rem` }}
-                                >
-                                    {item.text}
-                                </button>
-                            ))}
-                        </nav>
-                    </div>
-                )}
-
-                {/* Main Content */}
-                <div className="flex-1 flex flex-col h-full overflow-hidden">
-                    <header className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800/80">
-                         <div>
-                            <h2 className="text-xl font-bold text-white">{deliverable.name}</h2>
-                            <p className="text-sm text-gray-400">{deliverable.description}</p>
-                         </div>
-                        <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700 transition-colors">
-                            <X size={24} className="text-gray-400" />
-                        </button>
-                    </header>
-                    <main className="flex-1 p-8 overflow-y-auto" ref={contentRef}>
-                         <MarkdownContentRenderer content={deliverable.content} />
-                    </main>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const LinkInputModal: React.FC<{
-    onClose: () => void;
-    onSave: (name: string, url: string) => void;
-}> = ({ onClose, onSave }) => {
-    const [name, setName] = useState('');
-    const [url, setUrl] = useState('');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (name && url) {
-            onSave(name, url);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md border border-indigo-500/30">
-                <form onSubmit={handleSubmit}>
-                    <header className="flex justify-between items-center p-4 border-b border-gray-700">
-                        <h3 className="text-lg font-bold text-white">Adicionar Link</h3>
-                        <button type="button" onClick={onClose} className="text-gray-400 hover:text-white">
-                            <X size={20} />
-                        </button>
-                    </header>
-                    <div className="p-6 space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Nome do Link</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:ring-indigo-500"
-                                placeholder="Ex: Planilha de Vendas"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">URL</label>
-                            <input
-                                type="url"
-                                value={url}
-                                onChange={(e) => setUrl(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:ring-indigo-500"
-                                placeholder="https://..."
-                                required
-                            />
-                        </div>
-                    </div>
-                    <footer className="p-4 border-t border-gray-700 flex justify-end gap-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">Adicionar</button>
-                    </footer>
-                </form>
-            </div>
-        </div>
-    );
-};
-
 const ClientInfoView: React.FC = () => {
-    const { activeClient, updateClientInfoAnswer, addClientInfoLink, deleteClientInfoAttachment, currentUser, updateClient } = useData();
-    const [expandedSection, setExpandedSection] = useState<string | null>(CLIENT_INFO_SECTIONS_ORDER[0]);
-    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-    const [currentLinkTarget, setCurrentLinkTarget] = useState<{ sectionId: ClientInfoSectionId, questionId: string } | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { activeClient, updateClientInfoAnswer, addClientInfoQuestion, deleteClientInfoQuestion, addClientInfoAttachment, deleteClientInfoAttachment, currentUser } = useData();
+    const [activeSection, setActiveSection] = useState<ClientInfoSectionId>('summary');
+    const [uploading, setUploading] = useState<string | null>(null);
 
     if (!activeClient) return null;
 
-    const handleExportClientInfo = () => {
-        const dataStr = JSON.stringify(activeClient.clientInfo, null, 2);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${activeClient.name.replace(/\s+/g, '_')}_ClientInfo.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
+    const isAdmin = currentUser?.role === 'admin';
 
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const content = e.target?.result as string;
-                const importedData = JSON.parse(content);
-
-                // Basic validation to check if it looks like client info data
-                if (!importedData || typeof importedData !== 'object') {
-                     throw new Error("Estrutura de arquivo inválida.");
-                }
-
-                const confirmMessage = `[Importação Inteligente]\n\nDeseja mesclar os dados do arquivo com o questionário atual de "${activeClient.name}"?\n\n- A estrutura atual de perguntas será MANTIDA.\n- Respostas e anexos correspondentes (pelo ID) serão atualizados.\n- Respostas para perguntas que não existem mais serão ignoradas.\n\nIsso permite restaurar backups antigos mesmo se o questionário mudou.`;
-
-                if (window.confirm(confirmMessage)) {
-                    
-                    // SMART MERGE LOGIC
-                    const currentInfo = JSON.parse(JSON.stringify(activeClient.clientInfo)); // Deep copy current structure
-
-                    // Iterate over imported sections
-                    Object.keys(importedData).forEach((sectionKey) => {
-                        const importedSection = importedData[sectionKey];
-                        if (currentInfo[sectionKey] && importedSection.questions) {
-                            // Iterate over imported questions
-                            importedSection.questions.forEach((importedQ: ClientInfoQuestion) => {
-                                const targetQIndex = currentInfo[sectionKey].questions.findIndex((q: ClientInfoQuestion) => q.id === importedQ.id);
-                                if (targetQIndex !== -1) {
-                                    // Update answer
-                                    if (importedQ.answer) {
-                                         currentInfo[sectionKey].questions[targetQIndex].answer = importedQ.answer;
-                                    }
-                                    
-                                    // Merge attachments (replace for now to avoid duplicates logic complexity, but keep if imported has any)
-                                    if (importedQ.attachments && importedQ.attachments.length > 0) {
-                                        currentInfo[sectionKey].questions[targetQIndex].attachments = importedQ.attachments;
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    updateClient(activeClient.id, { clientInfo: currentInfo });
-                    alert("Importação realizada com sucesso! Os dados foram mesclados preservando a estrutura atual.");
-                }
-            } catch (error) {
-                console.error("Erro na importação:", error);
-                alert("Erro ao importar o arquivo. Certifique-se de que é um arquivo JSON válido exportado desta ferramenta.");
-            } finally {
-                if (fileInputRef.current) fileInputRef.current.value = '';
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    const handleToggleSection = (sectionId: string) => {
-        setExpandedSection(expandedSection === sectionId ? null : sectionId);
-    };
-
-    const handleOpenLinkModal = (sectionId: ClientInfoSectionId, questionId: string) => {
-        setCurrentLinkTarget({ sectionId, questionId });
-        setIsLinkModalOpen(true);
-    };
-
-    const handleSaveLink = (name: string, url: string) => {
-        if (activeClient && currentLinkTarget) {
-            addClientInfoLink(activeClient.id, currentLinkTarget.sectionId, currentLinkTarget.questionId, name, url);
-            setIsLinkModalOpen(false);
-            setCurrentLinkTarget(null);
+    const handleFileUpload = async (sectionId: ClientInfoSectionId, questionId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setUploading(questionId);
+            await addClientInfoAttachment(activeClient.id, sectionId, questionId, file);
+            setUploading(null);
         }
     };
 
-    // Progress Calculation Helper
-    const calculateProgress = (questions: ClientInfoQuestion[]) => {
-        const total = questions.length;
-        const filled = questions.filter(q => q.answer && q.answer.trim().length > 0).length;
-        const percentage = total === 0 ? 0 : Math.round((filled / total) * 100);
-        return { total, filled, percentage };
+    return (
+        <div className="flex h-[calc(100vh-140px)]">
+            <div className="w-64 bg-gray-800/50 border-r border-indigo-800/30 overflow-y-auto">
+                {CLIENT_INFO_SECTIONS_ORDER.map(sectionId => (
+                    <button
+                        key={sectionId}
+                        onClick={() => setActiveSection(sectionId)}
+                        className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors ${activeSection === sectionId ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`}
+                    >
+                        {activeClient.clientInfo[sectionId].title}
+                    </button>
+                ))}
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-900/50">
+                <h2 className="text-xl font-bold text-white mb-6">{activeClient.clientInfo[activeSection].title}</h2>
+                <div className="space-y-6">
+                    {activeClient.clientInfo[activeSection].questions.map(q => (
+                        <div key={q.id} className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+                            <p className="text-sm font-medium text-white mb-2">{q.question}</p>
+                            <textarea
+                                value={q.answer}
+                                onChange={(e) => updateClientInfoAnswer(activeClient.id, activeSection, q.id, e.target.value)}
+                                className="w-full bg-gray-900/50 border border-gray-600 rounded-md p-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none resize-y min-h-[80px]"
+                                placeholder="Insira a resposta..."
+                                readOnly={!isAdmin}
+                            />
+                            <div className="mt-2 flex items-center justify-between">
+                                <div className="flex flex-wrap gap-2">
+                                    {q.attachments?.map(att => (
+                                        <div key={att.id} className="flex items-center gap-1 bg-gray-700 px-2 py-1 rounded text-xs text-gray-300">
+                                            <Paperclip size={12} />
+                                            <span className="truncate max-w-[100px]">{att.name}</span>
+                                            {isAdmin && <button onClick={() => deleteClientInfoAttachment(activeClient.id, activeSection, q.id, att.id)} className="hover:text-red-400"><X size={12} /></button>}
+                                        </div>
+                                    ))}
+                                </div>
+                                {isAdmin && (
+                                    <label className="cursor-pointer text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                                        <UploadCloud size={14} />
+                                        {uploading === q.id ? 'Enviando...' : 'Anexar'}
+                                        <input type="file" className="hidden" onChange={(e) => handleFileUpload(activeSection, q.id, e)} />
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const TimelineView: React.FC<{ onStartEditing: (assessment: Assessment) => void; onNewAssessmentClick: () => void }> = ({ onStartEditing, onNewAssessmentClick }) => {
+    const { activeClient, deleteAssessment, currentUser } = useData();
+    if (!activeClient) return null;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Linha do Tempo de Avaliações</h2>
+                {currentUser?.role === 'admin' && (
+                    <button onClick={onNewAssessmentClick} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">
+                        <Plus size={16} /> Nova Avaliação
+                    </button>
+                )}
+            </div>
+            <div className="space-y-4">
+                {[...activeClient.assessments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(assessment => (
+                    <div key={assessment.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 flex justify-between items-center">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-lg font-bold text-white">{formatDate(assessment.date)}</span>
+                                <span className="bg-indigo-900/50 text-indigo-300 text-xs px-2 py-1 rounded-full border border-indigo-700/50">
+                                    Maturidade: {assessment.overallMaturity}%
+                                </span>
+                            </div>
+                            <p className="text-gray-400 text-sm mt-1 line-clamp-1">{assessment.generalNote || 'Sem observações gerais.'}</p>
+                        </div>
+                        {currentUser?.role === 'admin' && (
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => onStartEditing(assessment)} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                                    <Pencil size={18} />
+                                </button>
+                                <button onClick={() => {
+                                    if(window.confirm('Tem certeza que deseja excluir esta avaliação?')) {
+                                        deleteAssessment(activeClient.id, assessment.id);
+                                    }
+                                }} className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg">
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const MeetingPrepView: React.FC = () => {
+    const { activeClient } = useData();
+    const [summary, setSummary] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    if (!activeClient) return null;
+
+    const handleGenerate = async () => {
+        setLoading(true);
+        const result = await generateExecutiveSummary(activeClient);
+        setSummary(result);
+        setLoading(false);
     };
 
-    const calculateLevelStats = (questions: ClientInfoQuestion[], level: 'Essencial' | 'Profissional' | 'Elite') => {
-        const levelQs = questions.filter(q => q.level === level);
-        return calculateProgress(levelQs);
+    return (
+        <div className="space-y-6">
+            <h2 className="text-xl font-bold text-white">Preparação de Reunião (IA)</h2>
+            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
+                <p className="text-gray-300 mb-4">Gere um resumo executivo automático com base nas últimas avaliações para apresentar ao cliente.</p>
+                <button
+                    onClick={handleGenerate}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50"
+                >
+                    <BotMessageSquare size={18} />
+                    {loading ? 'Gerando...' : 'Gerar Resumo Executivo'}
+                </button>
+                {summary && (
+                    <div className="mt-6 bg-gray-900/50 p-6 rounded-lg border border-gray-700 whitespace-pre-line text-gray-200 leading-relaxed">
+                        {summary}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const ResourceLibraryView: React.FC = () => {
+    const { activeClient, addDeliverable, deleteDeliverable, currentUser } = useData();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newDoc, setNewDoc] = useState({ name: '', description: '', content: '' });
+
+    if (!activeClient) return null;
+
+    const handleSave = () => {
+        if (newDoc.name && newDoc.content) {
+            addDeliverable(activeClient.id, newDoc.name, newDoc.description, newDoc.content);
+            setIsModalOpen(false);
+            setNewDoc({ name: '', description: '', content: '' });
+        }
     };
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold text-white">Informações do Cliente</h2>
-                    <p className="text-gray-400">Dados cadastrais e levantamento de informações.</p>
-                </div>
+                <h2 className="text-xl font-bold text-white">Biblioteca de Recursos</h2>
                 {currentUser?.role === 'admin' && (
+                    <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md">
+                        <Plus size={16} /> Novo Documento
+                    </button>
+                )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeClient.deliverables.map(doc => (
+                    <div key={doc.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-5 hover:border-indigo-500/50 transition-colors group relative">
+                        <FileText className="w-8 h-8 text-indigo-400 mb-3" />
+                        <h3 className="font-bold text-white mb-1">{doc.name}</h3>
+                        <p className="text-sm text-gray-400 line-clamp-2">{doc.description}</p>
+                        {currentUser?.role === 'admin' && (
+                            <button 
+                                onClick={() => { if(window.confirm('Excluir este documento?')) deleteDeliverable(activeClient.id, doc.id); }}
+                                className="absolute top-4 right-4 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        )}
+                    </div>
+                ))}
+            </div>
+            
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+                    <div className="bg-gray-800 w-full max-w-lg rounded-xl p-6 border border-gray-700 space-y-4">
+                        <h3 className="text-lg font-bold text-white">Adicionar Documento</h3>
+                        <input className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white" placeholder="Nome" value={newDoc.name} onChange={e => setNewDoc({...newDoc, name: e.target.value})} />
+                        <input className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white" placeholder="Descrição" value={newDoc.description} onChange={e => setNewDoc({...newDoc, description: e.target.value})} />
+                        <textarea className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white h-32" placeholder="Conteúdo (Texto ou Markdown)" value={newDoc.content} onChange={e => setNewDoc({...newDoc, content: e.target.value})} />
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded">Cancelar</button>
+                            <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded">Salvar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const PlanningView: React.FC = () => {
+    const { activeClient, addJourney, importJourney, updateJourney, deleteJourney, addObjective, updateObjective, deleteObjective, addKeyResult, updateKeyResult, deleteKeyResult, addInitiative, updateInitiative, deleteInitiative, addAction, updateAction, deleteAction, currentUser } = useData();
+    const [expandedJourney, setExpandedJourney] = useState<string | null>(null);
+    const [editingItem, setEditingItem] = useState<{ type: 'journey' | 'objective' | 'kr' | 'initiative' | 'action', id: string, parentIds: string[], name: string } | null>(null);
+
+    if (!activeClient) return null;
+    const isAdmin = currentUser?.role === 'admin';
+
+    const toggleJourney = (id: string) => setExpandedJourney(expandedJourney === id ? null : id);
+
+    return (
+        <div className="space-y-6">
+             <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">Planejamento Estratégico</h2>
+                {isAdmin && (
                     <div className="flex gap-2">
-                         <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            accept=".json"
-                            className="hidden"
-                        />
-                        <button
-                            onClick={handleImportClick}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-gray-300 bg-gray-800 border border-gray-600 hover:bg-gray-700 hover:text-white rounded-md transition-colors"
-                            title="Importar JSON (Smart Merge)"
-                        >
-                            <UploadCloud size={16} />
-                            <span className="hidden sm:inline">Importar</span>
+                        <button onClick={() => importJourney(activeClient.id, CONSULTING_JOURNEY_TEMPLATE)} className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-md">
+                            <DownloadCloud size={16} /> Template
                         </button>
-                         <button
-                            onClick={handleExportClientInfo}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
-                            title="Exportar JSON"
-                        >
-                            <DownloadCloud size={16} />
-                            <span className="hidden sm:inline">Exportar</span>
+                        <button onClick={() => addJourney(activeClient.id, 'Nova Jornada')} className="flex items-center gap-2 px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md">
+                            <Plus size={16} /> Nova Jornada
                         </button>
                     </div>
                 )}
             </div>
 
             <div className="space-y-4">
-                {CLIENT_INFO_SECTIONS_ORDER.map((sectionKey) => {
-                    const section = activeClient.clientInfo[sectionKey];
-                    const isExpanded = expandedSection === sectionKey;
-
-                    const sectionTotal = calculateProgress(section.questions);
-                    const essentialStats = calculateLevelStats(section.questions, 'Essencial');
-                    const professionalStats = calculateLevelStats(section.questions, 'Profissional');
-                    const eliteStats = calculateLevelStats(section.questions, 'Elite');
-
-                    return (
-                        <div key={sectionKey} className="bg-gray-800/50 border border-indigo-800/30 rounded-lg overflow-hidden">
-                            <button
-                                onClick={() => handleToggleSection(sectionKey)}
-                                className="w-full block p-4 text-left hover:bg-gray-700/50 transition-colors group"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-lg font-semibold text-white">{section.title}</h3>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-sm font-bold text-gray-400 group-hover:text-white transition-colors">{sectionTotal.percentage}%</span>
-                                        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                    </div>
+                {activeClient.journeys.map(journey => (
+                    <div key={journey.id} className="bg-gray-800/30 border border-gray-700 rounded-xl overflow-hidden">
+                        <div 
+                            className="flex items-center justify-between p-4 bg-gray-800 cursor-pointer hover:bg-gray-750"
+                            onClick={() => toggleJourney(journey.id)}
+                        >
+                            <div className="flex items-center gap-4">
+                                <ChevronRight size={20} className={`text-gray-400 transition-transform ${expandedJourney === journey.id ? 'rotate-90' : ''}`} />
+                                <span className="font-bold text-lg text-white">{journey.name}</span>
+                                <span className="text-xs bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded border border-indigo-700/50">{journey.progress}% Concluído</span>
+                            </div>
+                            {isAdmin && (
+                                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                    <button onClick={() => addObjective(activeClient.id, journey.id, 'Novo Objetivo')} className="p-1 hover:bg-gray-600 rounded text-gray-400 hover:text-white" title="Adicionar Objetivo"><Plus size={16} /></button>
+                                    <button onClick={() => deleteJourney(activeClient.id, journey.id)} className="p-1 hover:bg-gray-600 rounded text-gray-400 hover:text-red-400"><Trash2 size={16} /></button>
                                 </div>
-                                
-                                {/* Main Progress Bar */}
-                                <div className="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
-                                    <div 
-                                        className="bg-indigo-500 h-full transition-all duration-500 ease-out" 
-                                        style={{ width: `${sectionTotal.percentage}%` }} 
-                                    />
-                                </div>
-
-                                {/* Sub-bars for Levels */}
-                                <div className="flex gap-2 mt-2 w-full">
-                                    {/* Essencial */}
-                                    <div className="flex-1 flex flex-col gap-1">
-                                        <div className="flex justify-between text-[10px] uppercase font-medium text-gray-500">
-                                            <span>Essencial</span>
-                                            <span>{essentialStats.percentage}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-green-500 h-full transition-all duration-500" style={{ width: `${essentialStats.percentage}%` }} />
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Profissional */}
-                                    <div className="flex-1 flex flex-col gap-1">
-                                        <div className="flex justify-between text-[10px] uppercase font-medium text-gray-500">
-                                            <span>Profissional</span>
-                                            <span>{professionalStats.percentage}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${professionalStats.percentage}%` }} />
-                                        </div>
-                                    </div>
-
-                                    {/* Elite */}
-                                    <div className="flex-1 flex flex-col gap-1">
-                                        <div className="flex justify-between text-[10px] uppercase font-medium text-gray-500">
-                                            <span>Elite</span>
-                                            <span>{eliteStats.percentage}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                                            <div className="bg-purple-500 h-full transition-all duration-500" style={{ width: `${eliteStats.percentage}%` }} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </button>
-                            
-                            {isExpanded && (
-                                <div className="p-4 border-t border-indigo-800/30 space-y-6 bg-gray-900/20">
-                                    {section.questions.map((q: ClientInfoQuestion) => (
-                                        <div key={q.id} className="bg-gray-800/80 p-4 rounded-lg border border-gray-700/50">
-                                            <div className="mb-2">
-                                                <p className="text-sm font-medium text-gray-200">{q.question}</p>
-                                                {q.level && (
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full ml-2 ${
-                                                        q.level === 'Essencial' ? 'bg-green-900 text-green-300' :
-                                                        q.level === 'Profissional' ? 'bg-blue-900 text-blue-300' :
-                                                        'bg-purple-900 text-purple-300'
-                                                    }`}>
-                                                        {q.level}
-                                                    </span>
-                                                )}
+                            )}
+                        </div>
+                        
+                        {expandedJourney === journey.id && (
+                            <div className="p-4 space-y-4 border-t border-gray-700">
+                                {journey.objectives.map(obj => (
+                                    <div key={obj.id} className="ml-4 border-l-2 border-indigo-500/30 pl-4 space-y-3">
+                                        <div className="flex items-center justify-between group">
+                                            <div className="flex items-center gap-2">
+                                                <Target size={18} className="text-indigo-400" />
+                                                <span className="font-semibold text-white">{obj.name}</span>
+                                                <span className="text-xs text-gray-500">({obj.progress}%)</span>
                                             </div>
-                                            
-                                            {currentUser?.role === 'admin' ? (
-                                                <textarea
-                                                    value={q.answer}
-                                                    onChange={(e) => updateClientInfoAnswer(activeClient.id, sectionKey as ClientInfoSectionId, q.id, e.target.value)}
-                                                    placeholder="Responda aqui..."
-                                                    className="w-full mt-2 p-3 bg-gray-900 border border-gray-600 rounded-md text-sm text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none min-h-[80px]"
-                                                />
-                                            ) : (
-                                                <div className="w-full mt-2 p-3 bg-gray-900/50 border border-gray-700 rounded-md text-sm text-gray-300 min-h-[40px]">
-                                                    {q.answer || <span className="text-gray-500 italic">Sem resposta.</span>}
+                                            {isAdmin && (
+                                                <div className="opacity-0 group-hover:opacity-100 flex gap-2">
+                                                     <button onClick={() => addKeyResult(activeClient.id, journey.id, obj.id, 'Novo KR')} className="text-xs text-indigo-400 hover:underline">+ KR</button>
+                                                     <button onClick={() => deleteObjective(activeClient.id, journey.id, obj.id)} className="text-gray-500 hover:text-red-400"><Trash2 size={14}/></button>
                                                 </div>
                                             )}
-
-                                            <div className="mt-3">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-xs font-semibold text-gray-400 uppercase">Links & Anexos</span>
-                                                    {currentUser?.role === 'admin' && (
-                                                        <button
-                                                            onClick={() => handleOpenLinkModal(sectionKey as ClientInfoSectionId, q.id)}
-                                                            className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 px-2 py-1 rounded hover:bg-indigo-900/50 transition-colors"
-                                                        >
-                                                            <LinkIcon size={12} />
-                                                            Adicionar Link
-                                                        </button>
+                                        </div>
+                                        
+                                        {obj.keyResults.map(kr => (
+                                            <div key={kr.id} className="ml-6 space-y-2">
+                                                <div className="flex items-center justify-between group">
+                                                    <div className="flex items-center gap-2">
+                                                        <Milestone size={16} className="text-purple-400" />
+                                                        <span className="text-gray-300 text-sm">{kr.name}</span>
+                                                        <span className="text-xs text-gray-600">({kr.progress}%)</span>
+                                                    </div>
+                                                    {isAdmin && (
+                                                        <div className="opacity-0 group-hover:opacity-100 flex gap-2">
+                                                            <button onClick={() => addInitiative(activeClient.id, journey.id, obj.id, kr.id, 'Nova Iniciativa')} className="text-xs text-purple-400 hover:underline">+ Iniciativa</button>
+                                                            <button onClick={() => deleteKeyResult(activeClient.id, journey.id, obj.id, kr.id)} className="text-gray-500 hover:text-red-400"><Trash2 size={14}/></button>
+                                                        </div>
                                                     )}
                                                 </div>
-                                                
-                                                <div className="flex flex-wrap gap-2">
-                                                    {(!q.attachments || q.attachments.length === 0) && (
-                                                        <span className="text-xs text-gray-500 italic">Nenhum link anexado.</span>
-                                                    )}
-                                                    {q.attachments?.map((att) => (
-                                                        <div key={att.id} className="group flex items-center gap-2 px-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-xs text-gray-300 hover:border-indigo-500 transition-colors">
-                                                            <ExternalLink size={12} className="text-indigo-400" />
-                                                            <a 
-                                                                href={att.data} 
-                                                                target="_blank" 
-                                                                rel="noopener noreferrer" 
-                                                                className="hover:text-indigo-400 font-medium truncate max-w-[200px]"
-                                                            >
-                                                                {att.name}
-                                                            </a>
-                                                            {currentUser?.role === 'admin' && (
-                                                                <button
-                                                                    onClick={() => deleteClientInfoAttachment(activeClient.id, sectionKey as ClientInfoSectionId, q.id, att.id)}
-                                                                    className="ml-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                    title="Remover Link"
-                                                                >
-                                                                    <X size={12} />
-                                                                </button>
+
+                                                {kr.initiatives.map(init => (
+                                                    <div key={init.id} className="ml-6 space-y-1">
+                                                        <div className="flex items-center justify-between group">
+                                                            <div className="flex items-center gap-2">
+                                                                <ListTodo size={14} className="text-blue-400" />
+                                                                <span className="text-gray-400 text-sm">{init.name}</span>
+                                                            </div>
+                                                            {isAdmin && (
+                                                                <div className="opacity-0 group-hover:opacity-100 flex gap-2">
+                                                                    <button onClick={() => addAction(activeClient.id, journey.id, obj.id, kr.id, init.id, 'Nova Ação')} className="text-xs text-blue-400 hover:underline">+ Ação</button>
+                                                                    <button onClick={() => deleteInitiative(activeClient.id, journey.id, obj.id, kr.id, init.id)} className="text-gray-500 hover:text-red-400"><Trash2 size={14}/></button>
+                                                                </div>
                                                             )}
                                                         </div>
-                                                    ))}
-                                                </div>
+                                                        
+                                                        {init.actions.map(action => (
+                                                            <div key={action.id} className="ml-6 flex items-center gap-2 group">
+                                                                <button 
+                                                                    onClick={() => isAdmin && updateAction(activeClient.id, journey.id, obj.id, kr.id, init.id, action.id, action.name, !action.isCompleted)}
+                                                                    className={`p-0.5 rounded ${action.isCompleted ? 'text-green-500' : 'text-gray-600'}`}
+                                                                >
+                                                                    {action.isCompleted ? <CheckSquare size={14} /> : <Square size={14} />}
+                                                                </button>
+                                                                <span className={`text-xs ${action.isCompleted ? 'text-gray-500 line-through' : 'text-gray-400'}`}>{action.name}</span>
+                                                                {isAdmin && <button onClick={() => deleteAction(activeClient.id, journey.id, obj.id, kr.id, init.id, action.id)} className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400"><Trash2 size={12}/></button>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ))}
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-            {isLinkModalOpen && (
-                <LinkInputModal 
-                    onClose={() => setIsLinkModalOpen(false)} 
-                    onSave={handleSaveLink} 
-                />
-            )}
-        </div>
-    );
-};
-
-const ResourceLibraryView: React.FC = () => {
-    const { activeClient, currentUser, deleteDeliverable, addDeliverable } = useData();
-    const [isAdding, setIsAdding] = useState(false);
-    const [newDoc, setNewDoc] = useState({ name: '', description: '', content: '' });
-    const [viewingDoc, setViewingDoc] = useState<Deliverable | null>(null);
-
-    const handleAdd = () => {
-        if (activeClient && newDoc.name) {
-            addDeliverable(activeClient.id, newDoc.name, newDoc.description, newDoc.content);
-            setIsAdding(false);
-            setNewDoc({ name: '', description: '', content: '' });
-        }
-    };
-
-    if (!activeClient) return null;
-
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold text-white">Biblioteca de Recursos</h2>
-                    <p className="text-gray-400">Documentos, playbooks e materiais de apoio.</p>
-                </div>
-                {currentUser?.role === 'admin' && (
-                    <button
-                        onClick={() => setIsAdding(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                    >
-                        <Plus size={18} />
-                        Novo Documento
-                    </button>
-                )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeClient.deliverables.map(doc => (
-                    <div key={doc.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-indigo-500/50 transition-colors group relative">
-                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                            <button onClick={() => setViewingDoc(doc)} className="p-2 bg-gray-700 hover:bg-indigo-600 rounded-full text-white">
-                                <ExternalLink size={16} />
-                            </button>
-                            {currentUser?.role === 'admin' && (
-                                <button onClick={() => deleteDeliverable(activeClient.id, doc.id)} className="p-2 bg-gray-700 hover:bg-red-600 rounded-full text-white">
-                                    <Trash2 size={16} />
-                                </button>
-                            )}
-                        </div>
-                        <FileText size={40} className="text-indigo-400 mb-4" />
-                        <h3 className="text-lg font-bold text-white mb-2">{doc.name}</h3>
-                        <p className="text-sm text-gray-400 line-clamp-3">{doc.description}</p>
-                        <button onClick={() => setViewingDoc(doc)} className="mt-4 text-sm text-indigo-400 hover:text-indigo-300 font-medium">
-                            Ler Documento &rarr;
-                        </button>
-                    </div>
-                ))}
-                {activeClient.deliverables.length === 0 && (
-                    <div className="col-span-full text-center py-12 bg-gray-800/30 rounded-xl border border-dashed border-gray-700">
-                        <Library className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-400">Biblioteca Vazia</h3>
-                        <p className="text-gray-500">Adicione documentos para compartilhar conhecimento.</p>
-                    </div>
-                )}
-            </div>
-
-            {isAdding && (
-                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-                    <div className="bg-gray-800 rounded-xl w-full max-w-2xl p-6 border border-gray-700">
-                        <h3 className="text-xl font-bold text-white mb-4">Novo Documento</h3>
-                        <div className="space-y-4">
-                            <input
-                                placeholder="Título do Documento"
-                                className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
-                                value={newDoc.name}
-                                onChange={e => setNewDoc({...newDoc, name: e.target.value})}
-                            />
-                            <input
-                                placeholder="Breve Descrição"
-                                className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
-                                value={newDoc.description}
-                                onChange={e => setNewDoc({...newDoc, description: e.target.value})}
-                            />
-                            <textarea
-                                placeholder="Conteúdo (Markdown suportado)"
-                                className="w-full h-64 bg-gray-900 border border-gray-600 rounded p-2 text-white font-mono text-sm"
-                                value={newDoc.content}
-                                onChange={e => setNewDoc({...newDoc, content: e.target.value})}
-                            />
-                        </div>
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded">Cancelar</button>
-                            <button onClick={handleAdd} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">Salvar</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {viewingDoc && (
-                <DeliverableViewerModal deliverable={viewingDoc} onClose={() => setViewingDoc(null)} />
-            )}
-        </div>
-    );
-};
-
-// --- Planning Components ---
-
-const ProgressBar: React.FC<{ progress: number, className?: string }> = ({ progress, className }) => (
-    <div className={`w-full bg-gray-700 rounded-full h-2 ${className}`}>
-        <div
-            className="bg-indigo-500 h-2 rounded-full transition-all duration-500 ease-in-out"
-            style={{ width: `${progress}%` }}
-        />
-    </div>
-);
-
-const AddItemModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: (name: string) => void;
-    title: string;
-    placeholder?: string;
-}> = ({ isOpen, onClose, onConfirm, title, placeholder }) => {
-    const [name, setName] = useState('');
-    
-    if (!isOpen) return null;
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (name.trim()) {
-            onConfirm(name);
-            setName('');
-            onClose();
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-gray-800 rounded-xl w-full max-w-md p-6 border border-gray-700 shadow-2xl">
-                <h3 className="text-xl font-bold text-white mb-4">{title}</h3>
-                <form onSubmit={handleSubmit}>
-                    <input
-                        autoFocus
-                        placeholder={placeholder || "Nome do item..."}
-                        className="w-full bg-gray-900 border border-gray-600 rounded p-3 text-white mb-4 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                    />
-                    <div className="flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium">Adicionar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-const ActionItem: React.FC<{
-    action: Action;
-    journeyId: string;
-    objectiveId: string;
-    keyResultId: string;
-    initiativeId: string;
-}> = ({ action, journeyId, objectiveId, keyResultId, initiativeId }) => {
-    const { activeClient, updateAction, deleteAction, currentUser } = useData();
-    
-    if (!activeClient) return null;
-
-    return (
-        <div className="flex items-center justify-between p-2 pl-4 hover:bg-gray-700/30 rounded group">
-            <div className="flex items-center gap-3">
-                <button
-                    onClick={() => updateAction(activeClient.id, journeyId, objectiveId, keyResultId, initiativeId, action.id, action.name, !action.isCompleted)}
-                    className={`p-1 rounded border transition-colors ${action.isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-gray-500 text-transparent hover:border-green-500'}`}
-                >
-                    <Check size={12} strokeWidth={3} />
-                </button>
-                <span className={`text-sm ${action.isCompleted ? 'text-gray-500 line-through' : 'text-gray-300'}`}>
-                    {action.name}
-                </span>
-            </div>
-            {currentUser?.role === 'admin' && (
-                <button 
-                    onClick={() => deleteAction(activeClient.id, journeyId, objectiveId, keyResultId, initiativeId, action.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity p-1"
-                >
-                    <X size={14} />
-                </button>
-            )}
-        </div>
-    );
-};
-
-const InitiativeItem: React.FC<{
-    initiative: Initiative;
-    journeyId: string;
-    objectiveId: string;
-    keyResultId: string;
-}> = ({ initiative, journeyId, objectiveId, keyResultId }) => {
-    const { activeClient, deleteInitiative, addAction, currentUser } = useData();
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    if (!activeClient) return null;
-
-    return (
-        <div className="ml-4 mt-2 border-l-2 border-gray-700 pl-4">
-            <div className="flex items-center justify-between group">
-                <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                     <div className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                        <ChevronRight size={16} className="text-gray-500" />
-                    </div>
-                    <ListTodo size={16} className="text-orange-400" />
-                    <span className="font-medium text-gray-200 text-sm">{initiative.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">({initiative.progress}%)</span>
-                </div>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {currentUser?.role === 'admin' && (
-                        <>
-                            <button onClick={() => setIsModalOpen(true)} className="text-xs bg-gray-800 hover:bg-gray-700 text-indigo-400 px-2 py-1 rounded flex items-center gap-1">
-                                <Plus size={12} /> Ação
-                            </button>
-                            <button onClick={() => deleteInitiative(activeClient.id, journeyId, objectiveId, keyResultId, initiative.id)} className="text-gray-500 hover:text-red-400 p-1">
-                                <Trash2 size={14} />
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
-            <ProgressBar progress={initiative.progress} className="mt-1 mb-2 h-1 bg-gray-800" />
-            
-            {isExpanded && (
-                <div className="mt-1 space-y-1">
-                    {initiative.actions.map(action => (
-                        <ActionItem 
-                            key={action.id} 
-                            action={action} 
-                            journeyId={journeyId} 
-                            objectiveId={objectiveId} 
-                            keyResultId={keyResultId} 
-                            initiativeId={initiative.id} 
-                        />
-                    ))}
-                    {initiative.actions.length === 0 && (
-                        <p className="text-xs text-gray-600 italic pl-4 py-1">Nenhuma ação definida.</p>
-                    )}
-                </div>
-            )}
-
-            <AddItemModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onConfirm={(name) => addAction(activeClient.id, journeyId, objectiveId, keyResultId, initiative.id, name)}
-                title="Nova Ação"
-                placeholder="Descreva a ação a ser realizada..."
-            />
-        </div>
-    );
-};
-
-const KeyResultItem: React.FC<{
-    kr: KeyResult;
-    journeyId: string;
-    objectiveId: string;
-}> = ({ kr, journeyId, objectiveId }) => {
-    const { activeClient, deleteKeyResult, addInitiative, currentUser } = useData();
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    if (!activeClient) return null;
-
-    return (
-        <div className="bg-gray-800/30 rounded-lg p-3 mb-3 border border-gray-700/50">
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={() => setIsExpanded(!isExpanded)}>
-                    <Activity size={18} className="text-blue-400" />
-                    <h5 className="font-semibold text-gray-200 text-sm">{kr.name}</h5>
-                     <div className={`transition-transform ${isExpanded ? 'rotate-180' : ''} ml-auto mr-4`}>
-                        <ChevronDown size={16} className="text-gray-500" />
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-blue-400 bg-blue-900/20 px-2 py-1 rounded">{kr.progress}%</span>
-                    {currentUser?.role === 'admin' && (
-                        <div className="flex gap-1">
-                             <button onClick={() => setIsModalOpen(true)} className="p-1 hover:bg-gray-700 rounded text-blue-400" title="Adicionar Iniciativa">
-                                <Plus size={16} />
-                            </button>
-                            <button onClick={() => deleteKeyResult(activeClient.id, journeyId, objectiveId, kr.id)} className="p-1 hover:bg-gray-700 rounded text-gray-500 hover:text-red-400">
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-            <ProgressBar progress={kr.progress} className="h-1.5 mb-3" />
-
-            {isExpanded && (
-                <div className="space-y-2 mt-2">
-                    {kr.initiatives.map(initiative => (
-                        <InitiativeItem 
-                            key={initiative.id} 
-                            initiative={initiative} 
-                            journeyId={journeyId} 
-                            objectiveId={objectiveId} 
-                            keyResultId={kr.id} 
-                        />
-                    ))}
-                    {kr.initiatives.length === 0 && (
-                        <p className="text-xs text-gray-500 italic text-center py-2">Nenhuma iniciativa criada para este KR.</p>
-                    )}
-                </div>
-            )}
-
-            <AddItemModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onConfirm={(name) => addInitiative(activeClient.id, journeyId, objectiveId, kr.id, name)}
-                title="Nova Iniciativa"
-                placeholder="Qual iniciativa suportará este KR?"
-            />
-        </div>
-    );
-};
-
-const ObjectiveItem: React.FC<{
-    objective: Objective;
-    journeyId: string;
-}> = ({ objective, journeyId }) => {
-    const { activeClient, deleteObjective, addKeyResult, currentUser } = useData();
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    if (!activeClient) return null;
-
-    return (
-        <div className="bg-gray-900/40 rounded-xl p-4 border-l-4 border-purple-500 mb-4">
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex-1 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                    <div className="flex items-center gap-2 mb-1">
-                        <Target size={20} className="text-purple-400" />
-                        <h4 className="text-lg font-bold text-white">{objective.name}</h4>
-                    </div>
-                    <p className="text-xs text-gray-400">{objective.keyResults.length} Resultados Chave</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                     <span className="text-sm font-bold text-purple-400">{objective.progress}%</span>
-                     {currentUser?.role === 'admin' && (
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setIsModalOpen(true)}
-                                className="text-xs flex items-center gap-1 text-purple-300 hover:text-white hover:bg-purple-600/50 px-2 py-1 rounded transition-colors"
-                            >
-                                <Plus size={14} /> KR
-                            </button>
-                            <button onClick={() => deleteObjective(activeClient.id, journeyId, objective.id)} className="text-gray-600 hover:text-red-400 transition-colors">
-                                <X size={18} />
-                            </button>
-                        </div>
-                     )}
-                </div>
-            </div>
-            <ProgressBar progress={objective.progress} />
-            
-            {isExpanded && (
-                <div className="mt-6 pl-2 space-y-4">
-                    {objective.keyResults.map(kr => (
-                        <KeyResultItem 
-                            key={kr.id} 
-                            kr={kr} 
-                            journeyId={journeyId} 
-                            objectiveId={objective.id} 
-                        />
-                    ))}
-                    {objective.keyResults.length === 0 && (
-                        <p className="text-sm text-gray-500 italic text-center py-4">Nenhum Resultado Chave (KR) definido.</p>
-                    )}
-                </div>
-            )}
-
-            <AddItemModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onConfirm={(name) => addKeyResult(activeClient.id, journeyId, objective.id, name)}
-                title="Novo Resultado Chave (KR)"
-                placeholder="Defina uma métrica de sucesso..."
-            />
-        </div>
-    );
-};
-
-const JourneyItem: React.FC<{ journey: Journey }> = ({ journey }) => {
-    const { activeClient, deleteJourney, addObjective, currentUser } = useData();
-    const [isExpanded, setIsExpanded] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    if (!activeClient) return null;
-
-    return (
-        <div className="bg-gray-800/30 border border-gray-700 rounded-xl overflow-hidden mb-8 shadow-lg">
-            <div 
-                className="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-800/50 cursor-pointer"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
-                <div className="flex items-center gap-4">
-                    <Milestone size={28} className="text-indigo-400" />
-                    <div>
-                        <h3 className="text-xl font-bold text-white">{journey.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                            <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                <div className="h-full bg-indigo-500" style={{ width: `${journey.progress}%` }} />
+                                        ))}
+                                    </div>
+                                ))}
                             </div>
-                            <span className="text-sm text-gray-400 font-medium">{journey.progress}% Concluído</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-4">
-                     {currentUser?.role === 'admin' && (
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); deleteJourney(activeClient.id, journey.id); }} 
-                            className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"
-                        >
-                            <Trash2 size={20} />
-                        </button>
-                     )}
-                    <ChevronDown className={`text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                </div>
-            </div>
-
-            {isExpanded && (
-                <div className="p-6 bg-gray-900/20">
-                    {journey.objectives.map(obj => (
-                        <ObjectiveItem key={obj.id} objective={obj} journeyId={journey.id} />
-                    ))}
-                    
-                    {journey.objectives.length === 0 && (
-                        <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg">
-                            <p className="text-gray-500 mb-2">Jornada vazia</p>
-                            <p className="text-sm text-gray-600">Adicione objetivos estratégicos para começar.</p>
-                        </div>
-                    )}
-
-                    {currentUser?.role === 'admin' && (
-                        <button 
-                            onClick={() => setIsModalOpen(true)}
-                            className="mt-6 w-full py-3 border-2 border-dashed border-indigo-500/30 rounded-lg text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/50 transition-all flex items-center justify-center gap-2 font-semibold"
-                        >
-                            <Plus size={20} /> Novo Objetivo Estratégico
-                        </button>
-                    )}
-                </div>
-            )}
-
-            <AddItemModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onConfirm={(name) => addObjective(activeClient.id, journey.id, name)}
-                title="Novo Objetivo Estratégico"
-                placeholder="O que queremos alcançar?"
-            />
-        </div>
-    );
-};
-
-const PlanningView: React.FC = () => {
-    const { activeClient, currentUser, addJourney, importJourney } = useData();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    if (!activeClient) return null;
-
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const content = e.target?.result as string;
-                const importedData = JSON.parse(content);
-                
-                // Handle array or single object
-                const journeysToImport = Array.isArray(importedData) ? importedData : [importedData];
-                
-                // Basic validation
-                let importedCount = 0;
-                journeysToImport.forEach((journey: any) => {
-                     if (journey.name && Array.isArray(journey.objectives)) {
-                         // Ensure structure is valid for importJourney
-                         importJourney(activeClient.id, journey);
-                         importedCount++;
-                     }
-                });
-
-                if (importedCount > 0) {
-                    alert(`${importedCount} jornada(s) importada(s) com sucesso!`);
-                } else {
-                    alert("Nenhuma jornada válida encontrada no arquivo.");
-                }
-
-            } catch (error) {
-                console.error("Erro na importação:", error);
-                alert("Erro ao importar o arquivo. Certifique-se de que é um JSON válido.");
-            } finally {
-                if (fileInputRef.current) fileInputRef.current.value = '';
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    const handleExportJourneys = () => {
-        if (!activeClient) return;
-        const dataStr = JSON.stringify(activeClient.journeys, null, 2);
-        const blob = new Blob([dataStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${activeClient.name.replace(/\s+/g, '_')}_StrategicPlanning.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
-
-    return (
-        <div className="space-y-8 pb-20">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Planejamento Estratégico</h2>
-                    <p className="text-gray-400 mt-1">Gerencie Jornadas, Objetivos, KRs, Iniciativas e Ações.</p>
-                </div>
-                {currentUser?.role === 'admin' && (
-                    <div className="flex gap-2">
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            accept=".json"
-                            className="hidden"
-                        />
-                        <button
-                            onClick={handleImportClick}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors"
-                        >
-                            <UploadCloud size={20} />
-                            Importar
-                        </button>
-                        <button
-                            onClick={handleExportJourneys}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 border border-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors"
-                        >
-                            <DownloadCloud size={20} />
-                            Exportar
-                        </button>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-lg shadow-indigo-900/30 transition-all hover:scale-105"
-                        >
-                            <Plus size={20} />
-                            Nova Jornada
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            <div className="space-y-6">
-                {activeClient.journeys.map(journey => (
-                    <JourneyItem key={journey.id} journey={journey} />
-                ))}
-
-                {activeClient.journeys.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-20 bg-gray-800/30 border border-gray-700 rounded-2xl">
-                        <Milestone size={64} className="text-gray-600 mb-4" />
-                        <h3 className="text-xl font-bold text-gray-300 mb-2">Nenhuma Jornada Criada</h3>
-                        <p className="text-gray-500 max-w-md text-center mb-6">
-                            Comece definindo uma jornada estratégica para estruturar os objetivos e metas do cliente.
-                        </p>
-                        {currentUser?.role === 'admin' && (
-                            <button
-                                onClick={() => setIsModalOpen(true)}
-                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold"
-                            >
-                                Criar Primeira Jornada
-                            </button>
                         )}
                     </div>
-                )}
+                ))}
             </div>
-
-            <AddItemModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onConfirm={(name) => addJourney(activeClient.id, name)}
-                title="Nova Jornada"
-                placeholder="Nome da Jornada (ex: Implementação Q1)"
-            />
         </div>
     );
 };
 
 const ChatbotView: React.FC = () => {
-    const { activeClient, currentUser, addChatSession, updateChatSession } = useData();
-    const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+    const { activeClient } = useData();
     const [input, setInput] = useState('');
-    const [isTyping, setIsTyping] = useState(false);
-
-    const sessions = activeClient?.chatSessions || [];
-    const activeSession = sessions.find(s => s.id === activeSessionId);
-
-    const handleNewChat = () => {
-        if (!activeClient) return;
-        const session = addChatSession(activeClient.id);
-        setActiveSessionId(session.id);
-    };
-
-    const handleSend = async () => {
-        if (!activeClient || !activeSession || !input.trim()) return;
-        
-        const userMsg: ChatMessage = { sender: 'user', text: input, timestamp: new Date().toISOString() };
-        const updatedMessages = [...activeSession.messages, userMsg];
-        
-        // Optimistic update
-        updateChatSession(activeClient.id, activeSession.id, { messages: updatedMessages });
-        setInput('');
-        setIsTyping(true);
-
-        // Generate AI response
-        const contextDocs = activeClient.deliverables; // Use all for simplicity
-        const aiResponseText = await generateChatResponseWithContext(
-            input,
-            contextDocs,
-            activeSession.tone,
-            activeSession.size,
-            activeSession.orientation
-        );
-
-        const aiMsg: ChatMessage = { sender: 'ai', text: aiResponseText, timestamp: new Date().toISOString() };
-        updateChatSession(activeClient.id, activeSession.id, { messages: [...updatedMessages, aiMsg] });
-        setIsTyping(false);
-    };
+    const [messages, setMessages] = useState<{role: 'user' | 'ai', text: string}[]>([]);
+    const [loading, setLoading] = useState(false);
 
     if (!activeClient) return null;
 
-    return (
-        <div className="flex h-[calc(100vh-140px)] gap-6">
-            <div className="w-64 bg-gray-800/30 rounded-xl border border-gray-700 flex flex-col p-4">
-                <button onClick={handleNewChat} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg mb-4 flex items-center justify-center gap-2">
-                    <Plus size={18} /> Nova Conversa
-                </button>
-                <div className="flex-1 overflow-y-auto space-y-2">
-                    {sessions.map(session => (
-                        <button
-                            key={session.id}
-                            onClick={() => setActiveSessionId(session.id)}
-                            className={`w-full text-left p-3 rounded-lg text-sm truncate ${
-                                activeSessionId === session.id ? 'bg-indigo-900/50 text-white border border-indigo-500/50' : 'text-gray-400 hover:bg-gray-800'
-                            }`}
-                        >
-                            {session.messages.length > 0 ? session.messages[0].text : 'Nova Conversa'}
-                        </button>
-                    ))}
-                </div>
-            </div>
+    const handleSend = async () => {
+        if (!input.trim()) return;
+        
+        const newMessages = [...messages, { role: 'user' as const, text: input }];
+        setMessages(newMessages);
+        setInput('');
+        setLoading(true);
 
-            <div className="flex-1 bg-gray-800/30 rounded-xl border border-gray-700 flex flex-col overflow-hidden">
-                {activeSession ? (
-                    <>
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                            {activeSession.messages.map((msg, idx) => (
-                                <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[80%] p-4 rounded-2xl ${
-                                        msg.sender === 'user' 
-                                            ? 'bg-indigo-600 text-white rounded-br-none' 
-                                            : 'bg-gray-700 text-gray-200 rounded-bl-none'
-                                    }`}>
-                                        <MarkdownContentRenderer content={msg.text} />
-                                    </div>
-                                </div>
-                            ))}
-                            {isTyping && (
-                                <div className="flex justify-start">
-                                    <div className="bg-gray-700 p-4 rounded-2xl rounded-bl-none flex gap-2">
-                                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75" />
-                                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150" />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="p-4 bg-gray-800 border-t border-gray-700 flex gap-2">
-                            <input
-                                value={input}
-                                onChange={e => setInput(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                                placeholder="Faça uma pergunta sobre os documentos..."
-                                className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-4 text-white focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                            <button onClick={handleSend} className="p-3 bg-indigo-600 rounded-lg text-white hover:bg-indigo-700">
-                                <SendHorizonal size={20} />
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-                        <BrainCircuit size={64} className="mb-4 opacity-20" />
-                        <p>Selecione ou inicie uma nova conversa</p>
+        const response = await generateChatResponseWithContext(input, activeClient.deliverables, 'Profissional', 'Médio', '');
+        
+        setMessages([...newMessages, { role: 'ai', text: response }]);
+        setLoading(false);
+    };
+
+    return (
+        <div className="flex flex-col h-[calc(100vh-140px)] bg-gray-800/30 border border-gray-700 rounded-xl overflow-hidden">
+             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                 {messages.length === 0 && (
+                     <div className="text-center text-gray-500 mt-10">
+                         <BotMessageSquare size={48} className="mx-auto mb-4 opacity-50" />
+                         <p>Comece uma conversa sobre os documentos do cliente.</p>
+                     </div>
+                 )}
+                 {messages.map((msg, i) => (
+                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                         <div className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+                             {msg.text}
+                         </div>
+                     </div>
+                 ))}
+                 {loading && <div className="text-gray-400 text-sm ml-2">Digitando...</div>}
+             </div>
+             <div className="p-4 bg-gray-800 border-t border-gray-700 flex gap-2">
+                 <input 
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSend()}
+                    placeholder="Faça uma pergunta..."
+                    className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                 />
+                 <button onClick={handleSend} disabled={loading} className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                     <SendHorizonal size={20} />
+                 </button>
+             </div>
+        </div>
+    );
+};
+
+const DashboardHome: React.FC<{ onPillarClick: (pillar: Pillar) => void; onNewAssessmentClick: () => void; }> = ({ onPillarClick, onNewAssessmentClick }) => {
+    const { activeClient, currentUser } = useData();
+
+    const latestAssessment = useMemo(() => {
+        if (!activeClient || activeClient.assessments.length === 0) return null;
+        return activeClient.assessments[activeClient.assessments.length - 1];
+    }, [activeClient]);
+
+    const previousAssessment = useMemo(() => {
+        if (!activeClient || activeClient.assessments.length < 2) return null;
+        return activeClient.assessments[activeClient.assessments.length - 2];
+    }, [activeClient]);
+    
+    if (!activeClient || !latestAssessment) {
+        return <NewClientOnboarding />;
+    }
+
+    const radarChartData = PILLARS.map(pillar => ({
+        subject: PILLAR_DATA[pillar].name.substring(0, 15) + (PILLAR_DATA[pillar].name.length > 15 ? '...' : ''),
+        A: calculatePillarScore(latestAssessment.scores[pillar].responses),
+        B: latestAssessment.scores[pillar].goal,
+        fullMark: 100,
+    }));
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                <PillarMatrix 
+                    radarChartData={radarChartData}
+                    scores={latestAssessment.scores}
+                    previousScores={previousAssessment?.scores || null}
+                    onPillarClick={onPillarClick}
+                    onNewAssessmentClick={onNewAssessmentClick}
+                />
+            </div>
+            <div className="space-y-6">
+                <OverallMaturityCard 
+                    latestMaturity={latestAssessment.overallMaturity} 
+                    previousMaturity={previousAssessment?.overallMaturity || null}
+                />
+                
+                {latestAssessment.generalNote && (
+                    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-indigo-800/30 p-6">
+                        <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                             <Lightbulb className="w-5 h-5 text-indigo-400" />
+                             Análise Geral & Estratégia
+                        </h3>
+                        <p className="text-sm text-gray-300 italic leading-relaxed">
+                            "{latestAssessment.generalNote}"
+                        </p>
                     </div>
                 )}
+
+                <KeyChangesCard 
+                    latestScores={latestAssessment.scores}
+                    previousScores={previousAssessment?.scores || null}
+                />
             </div>
         </div>
     );
 };
 
-const CreateAssessmentModal: React.FC<{ onClose: () => void; onCreate: (scores: PillarScores, generalNote?: string) => void; initialAssessment: Assessment | null; }> = ({ onClose, onCreate, initialAssessment }) => {
+const CreateAssessmentModal: React.FC<{ onClose: () => void; onCreate: (scores: PillarScores, generalNote?: string, date?: string) => void; initialAssessment: Assessment | null; }> = ({ onClose, onCreate, initialAssessment }) => {
     // Initial state setup based on pillars
     const [scores, setScores] = useState<PillarScores>(() => {
         const initial = {} as PillarScores;
@@ -2449,7 +1329,9 @@ const CreateAssessmentModal: React.FC<{ onClose: () => void; onCreate: (scores: 
     });
 
     const [generalNote, setGeneralNote] = useState('');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [activeTab, setActiveTab] = useState<'general' | Pillar>('general');
 
     const handleScoreChange = (pillar: Pillar, index: number, val: number) => {
         const newScores = { ...scores };
@@ -2465,95 +1347,192 @@ const CreateAssessmentModal: React.FC<{ onClose: () => void; onCreate: (scores: 
     };
 
     const handleSubmit = () => {
-        onCreate(scores, generalNote);
+        onCreate(scores, generalNote, date);
     };
 
     return (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 w-full max-w-4xl max-h-[90vh] rounded-xl overflow-hidden flex flex-col">
-                <header className="p-4 border-b border-gray-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white">Nova Avaliação</h2>
-                    <button onClick={onClose}><X className="text-gray-400" /></button>
+            <div className="bg-gray-800 w-full max-w-6xl h-[90vh] rounded-xl overflow-hidden flex flex-col shadow-2xl border border-gray-700">
+                <header className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Rocket className="text-indigo-500" /> Nova Avaliação
+                    </h2>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors"><X className="text-gray-400" /></button>
                 </header>
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                     <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                         <div className="flex justify-between items-center mb-2">
-                             <h3 className="text-lg font-bold text-white">Nota Geral da Avaliação</h3>
-                             <button
-                                 onClick={handleGenerateNote}
-                                 disabled={isGenerating}
-                                 className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors disabled:opacity-50"
-                             >
-                                 <Sparkles size={14} />
-                                 {isGenerating ? 'Gerando...' : 'Gerar com IA'}
-                             </button>
-                         </div>
-                        <textarea
-                            className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white h-24"
-                            placeholder="Escreva uma observação geral sobre a maturidade comercial da empresa..."
-                            value={generalNote}
-                            onChange={(e) => setGeneralNote(e.target.value)}
-                        />
-                     </div>
-
-                    {PILLARS.map(pillar => (
-                        <div key={pillar} className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                            <h3 className="text-lg font-bold text-indigo-400 mb-4">{PILLAR_DATA[pillar].name}</h3>
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                {PILLAR_QUESTIONS[pillar].map((q, idx) => (
-                                    <div key={q.id} className="space-y-3 bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 hover:border-indigo-500/50 transition-colors">
-                                        <p className="text-sm font-medium text-white">{q.id} {q.question}</p>
-                                        <div className="space-y-2">
-                                            {[0, 25, 50, 75, 100].map((val) => {
-                                                const value = val as 0 | 25 | 50 | 75 | 100;
-                                                return (
-                                                    <label key={val} className={`flex items-start gap-3 p-2 rounded cursor-pointer transition-all border ${
-                                                        scores[pillar].responses[idx] === value
-                                                            ? 'bg-indigo-900/30 border-indigo-500 ring-1 ring-indigo-500/50'
-                                                            : 'bg-gray-900/30 border-gray-700 hover:bg-gray-800 hover:border-gray-500'
-                                                    }`}>
-                                                        <div className="mt-0.5">
-                                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                                                                scores[pillar].responses[idx] === value
-                                                                    ? 'border-indigo-500 bg-indigo-500'
-                                                                    : 'border-gray-500 bg-transparent'
-                                                            }`}>
-                                                                {scores[pillar].responses[idx] === value && <div className="w-2 h-2 rounded-full bg-white" />}
-                                                            </div>
-                                                            <input
-                                                                type="radio"
-                                                                name={`q-${pillar}-${idx}`}
-                                                                value={value}
-                                                                checked={scores[pillar].responses[idx] === value}
-                                                                onChange={() => handleScoreChange(pillar, idx, value)}
-                                                                className="hidden"
-                                                            />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-0.5">
-                                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                                                                    value === 0 ? 'bg-red-900/30 text-red-400 border border-red-900/50' :
-                                                                    value === 25 ? 'bg-orange-900/30 text-orange-400 border border-orange-900/50' :
-                                                                    value === 50 ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-900/50' :
-                                                                    value === 75 ? 'bg-blue-900/30 text-blue-400 border border-blue-900/50' :
-                                                                    'bg-green-900/30 text-green-400 border border-green-900/50'
-                                                                }`}>{value}%</span>
-                                                            </div>
-                                                            <span className="text-xs text-gray-300 leading-tight block">{q.options[value]}</span>
-                                                        </div>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
+                
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Sidebar Navigation */}
+                    <div className="w-1/4 bg-gray-900/30 border-r border-gray-700 overflow-y-auto p-4 space-y-2">
+                        <button
+                            onClick={() => setActiveTab('general')}
+                            className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
+                                activeTab === 'general' 
+                                    ? 'bg-indigo-600 text-white shadow-md' 
+                                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                            }`}
+                        >
+                            <Info size={18} />
+                            <span className="font-medium">Visão Geral</span>
+                        </button>
+                        
+                        <div className="my-2 border-t border-gray-700/50"></div>
+                        
+                        {PILLARS.map(pillar => {
+                            const Icon = ICON_MAP[pillar];
+                            const currentScore = calculatePillarScore(scores[pillar].responses);
+                            return (
+                                <button
+                                    key={pillar}
+                                    onClick={() => setActiveTab(pillar)}
+                                    className={`w-full text-left px-4 py-3 rounded-lg flex items-center justify-between transition-colors group ${
+                                        activeTab === pillar 
+                                            ? 'bg-gray-800 text-white border-l-4 border-indigo-500' 
+                                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Icon size={18} style={{ color: activeTab === pillar ? '#fff' : PILLAR_DATA[pillar].color }} />
+                                        <span className="font-medium truncate">{PILLAR_DATA[pillar].name}</span>
                                     </div>
-                                ))}
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                        currentScore > 0 ? 'bg-gray-700 text-gray-200' : 'bg-gray-800/50 text-gray-600'
+                                    }`}>
+                                        {currentScore}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 overflow-y-auto p-8 bg-gray-800">
+                        {activeTab === 'general' && (
+                            <div className="space-y-8 animate-fadeIn">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                     <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700">
+                                        <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                                            <Calendar size={16} className="text-indigo-400"/> Data da Avaliação
+                                        </label>
+                                        <input 
+                                            type="date" 
+                                            value={date}
+                                            onChange={(e) => setDate(e.target.value)}
+                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            A data será usada para organizar a timeline e calcular a evolução.
+                                        </p>
+                                     </div>
+                                </div>
+
+                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700">
+                                     <div className="flex justify-between items-center mb-4">
+                                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                             <Sparkles className="text-yellow-400" /> Nota Geral & Estratégia
+                                         </h3>
+                                         <button
+                                             onClick={handleGenerateNote}
+                                             disabled={isGenerating}
+                                             className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors disabled:opacity-50"
+                                         >
+                                             <BrainCircuit size={14} />
+                                             {isGenerating ? 'Gerando...' : 'Gerar com IA'}
+                                         </button>
+                                     </div>
+                                    <textarea
+                                        className="w-full bg-gray-800 border border-gray-600 rounded-lg p-4 text-sm text-white h-40 focus:ring-2 focus:ring-indigo-500 outline-none resize-none leading-relaxed"
+                                        placeholder="Escreva uma observação geral sobre a maturidade comercial da empresa. Use a IA para gerar um resumo baseado nas pontuações."
+                                        value={generalNote}
+                                        onChange={(e) => setGeneralNote(e.target.value)}
+                                    />
+                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        )}
+
+                        {activeTab !== 'general' && (
+                            <div className="space-y-6 animate-fadeIn">
+                                <div className="flex items-center justify-between border-b border-gray-700 pb-4 mb-6">
+                                    <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                                        {React.createElement(ICON_MAP[activeTab], { size: 28, style: { color: PILLAR_DATA[activeTab].color } })}
+                                        {PILLAR_DATA[activeTab].name}
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-400">Pontuação:</span>
+                                        <span className="text-2xl font-bold" style={{ color: PILLAR_DATA[activeTab].color }}>
+                                            {calculatePillarScore(scores[activeTab].responses)}
+                                        </span>
+                                        <span className="text-sm text-gray-500">/ 100</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {PILLAR_QUESTIONS[activeTab].map((q, idx) => (
+                                        <div key={q.id} className="bg-gray-900/50 p-5 rounded-xl border border-gray-700 hover:border-indigo-500/30 transition-colors">
+                                            <p className="text-base font-medium text-white mb-4">{q.id} {q.question}</p>
+                                            <div className="space-y-2">
+                                                {[0, 25, 50, 75, 100].map((val) => {
+                                                    const value = val as 0 | 25 | 50 | 75 | 100;
+                                                    const isSelected = scores[activeTab].responses[idx] === value;
+                                                    return (
+                                                        <label key={val} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
+                                                            isSelected
+                                                                ? 'bg-indigo-900/20 border-indigo-500 ring-1 ring-indigo-500/50'
+                                                                : 'bg-gray-800/50 border-gray-700 hover:bg-gray-800'
+                                                        }`}>
+                                                            <div className="mt-0.5">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`q-${activeTab}-${idx}`}
+                                                                    value={value}
+                                                                    checked={isSelected}
+                                                                    onChange={() => handleScoreChange(activeTab, idx, value)}
+                                                                    className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-500 focus:ring-indigo-500 focus:ring-2"
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                                                        value === 0 ? 'bg-red-900/30 text-red-400 border border-red-900/50' :
+                                                                        value === 25 ? 'bg-orange-900/30 text-orange-400 border border-orange-900/50' :
+                                                                        value === 50 ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-900/50' :
+                                                                        value === 75 ? 'bg-blue-900/30 text-blue-400 border border-blue-900/50' :
+                                                                        'bg-green-900/30 text-green-400 border border-green-900/50'
+                                                                    }`}>{value}%</span>
+                                                                </div>
+                                                                <span className="text-sm text-gray-300 block">{q.options[value]}</span>
+                                                            </div>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <div className="bg-gray-900/50 p-5 rounded-xl border border-gray-700 mt-6">
+                                    <label className="block text-sm font-medium text-gray-400 mb-2">Notas do Pilar (Opcional)</label>
+                                    <textarea
+                                        className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        rows={3}
+                                        value={scores[activeTab].notes}
+                                        onChange={e => {
+                                            const newScores = {...scores};
+                                            newScores[activeTab].notes = e.target.value;
+                                            setScores(newScores);
+                                        }}
+                                        placeholder={`Adicione observações específicas sobre ${PILLAR_DATA[activeTab].name}...`}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <footer className="p-4 border-t border-gray-700 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded">Cancelar</button>
-                    <button onClick={handleSubmit} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">Criar Avaliação</button>
+
+                <footer className="p-4 border-t border-gray-700 flex justify-end gap-3 bg-gray-900/50">
+                    <button onClick={onClose} className="px-5 py-2.5 text-gray-300 hover:bg-gray-700 rounded-lg font-medium transition-colors">Cancelar</button>
+                    <button onClick={handleSubmit} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-lg shadow-indigo-900/50 transition-all hover:scale-105">
+                        Criar Avaliação
+                    </button>
                 </footer>
             </div>
         </div>
@@ -2564,7 +1543,10 @@ const EditAssessmentModal: React.FC<{ assessment: Assessment; initialPillar?: Pi
     const { updateAssessment, activeClient } = useData();
     const [scores, setScores] = useState<PillarScores>(JSON.parse(JSON.stringify(assessment.scores)));
     const [generalNote, setGeneralNote] = useState(assessment.generalNote || '');
+    // Ensure date is formatted YYYY-MM-DD for input type="date"
+    const [date, setDate] = useState(new Date(assessment.date).toISOString().split('T')[0]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [activeTab, setActiveTab] = useState<'general' | Pillar>(initialPillar || 'general');
 
     const handleGenerateNote = async () => {
         setIsGenerating(true);
@@ -2575,114 +1557,198 @@ const EditAssessmentModal: React.FC<{ assessment: Assessment; initialPillar?: Pi
 
     const handleSave = () => {
         if (activeClient) {
-            updateAssessment(activeClient.id, assessment.id, scores, generalNote);
+            updateAssessment(activeClient.id, assessment.id, scores, generalNote, date);
             onClose();
         }
     };
 
     return (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 w-full max-w-4xl max-h-[90vh] rounded-xl overflow-hidden flex flex-col">
-                <header className="p-4 border-b border-gray-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white">Editar Avaliação</h2>
-                    <button onClick={onClose}><X className="text-gray-400" /></button>
+            <div className="bg-gray-800 w-full max-w-6xl h-[90vh] rounded-xl overflow-hidden flex flex-col shadow-2xl border border-gray-700">
+                <header className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Edit className="text-indigo-500" /> Editar Avaliação
+                    </h2>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-full transition-colors"><X className="text-gray-400" /></button>
                 </header>
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-
-                    <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                         <div className="flex justify-between items-center mb-2">
-                             <h3 className="text-lg font-bold text-white">Nota Geral da Avaliação</h3>
-                             <button
-                                 onClick={handleGenerateNote}
-                                 disabled={isGenerating}
-                                 className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors disabled:opacity-50"
-                             >
-                                 <Sparkles size={14} />
-                                 {isGenerating ? 'Gerando...' : 'Regerar com IA'}
-                             </button>
-                         </div>
-                        <textarea
-                            className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white h-24"
-                            placeholder="Escreva uma observação geral sobre a maturidade comercial da empresa..."
-                            value={generalNote}
-                            onChange={(e) => setGeneralNote(e.target.value)}
-                        />
-                     </div>
-
-                    {PILLARS.map(pillar => (
-                        <div key={pillar} className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                            <h3 className="text-lg font-bold text-indigo-400 mb-4">{PILLAR_DATA[pillar].name}</h3>
-                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                {PILLAR_QUESTIONS[pillar].map((q, idx) => (
-                                    <div key={q.id} className="space-y-3 bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 hover:border-indigo-500/50 transition-colors">
-                                        <p className="text-sm font-medium text-white">{q.id} {q.question}</p>
-                                        <div className="space-y-2">
-                                            {[0, 25, 50, 75, 100].map((val) => {
-                                                const value = val as 0 | 25 | 50 | 75 | 100;
-                                                return (
-                                                    <label key={val} className={`flex items-start gap-3 p-2 rounded cursor-pointer transition-all border ${
-                                                        scores[pillar].responses[idx] === value
-                                                            ? 'bg-indigo-900/30 border-indigo-500 ring-1 ring-indigo-500/50'
-                                                            : 'bg-gray-900/30 border-gray-700 hover:bg-gray-800 hover:border-gray-500'
-                                                    }`}>
-                                                        <div className="mt-0.5">
-                                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                                                                scores[pillar].responses[idx] === value
-                                                                    ? 'border-indigo-500 bg-indigo-500'
-                                                                    : 'border-gray-500 bg-transparent'
-                                                            }`}>
-                                                                {scores[pillar].responses[idx] === value && <div className="w-2 h-2 rounded-full bg-white" />}
-                                                            </div>
-                                                            <input
-                                                                type="radio"
-                                                                name={`q-edit-${pillar}-${idx}`}
-                                                                value={value}
-                                                                checked={scores[pillar].responses[idx] === value}
-                                                                onChange={() => {
-                                                                    const newScores = { ...scores };
-                                                                    newScores[pillar].responses[idx] = value;
-                                                                    setScores(newScores);
-                                                                }}
-                                                                className="hidden"
-                                                            />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-0.5">
-                                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                                                                    value === 0 ? 'bg-red-900/30 text-red-400 border border-red-900/50' :
-                                                                    value === 25 ? 'bg-orange-900/30 text-orange-400 border border-orange-900/50' :
-                                                                    value === 50 ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-900/50' :
-                                                                    value === 75 ? 'bg-blue-900/30 text-blue-400 border border-blue-900/50' :
-                                                                    'bg-green-900/30 text-green-400 border border-green-900/50'
-                                                                }`}>{value}%</span>
-                                                            </div>
-                                                            <span className="text-xs text-gray-300 leading-tight block">{q.options[value]}</span>
-                                                        </div>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
+                
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Sidebar Navigation */}
+                    <div className="w-1/4 bg-gray-900/30 border-r border-gray-700 overflow-y-auto p-4 space-y-2">
+                        <button
+                            onClick={() => setActiveTab('general')}
+                            className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
+                                activeTab === 'general' 
+                                    ? 'bg-indigo-600 text-white shadow-md' 
+                                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                            }`}
+                        >
+                            <Info size={18} />
+                            <span className="font-medium">Visão Geral</span>
+                        </button>
+                        
+                        <div className="my-2 border-t border-gray-700/50"></div>
+                        
+                        {PILLARS.map(pillar => {
+                            const Icon = ICON_MAP[pillar];
+                            const currentScore = calculatePillarScore(scores[pillar].responses);
+                            return (
+                                <button
+                                    key={pillar}
+                                    onClick={() => setActiveTab(pillar)}
+                                    className={`w-full text-left px-4 py-3 rounded-lg flex items-center justify-between transition-colors group ${
+                                        activeTab === pillar 
+                                            ? 'bg-gray-800 text-white border-l-4 border-indigo-500' 
+                                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Icon size={18} style={{ color: activeTab === pillar ? '#fff' : PILLAR_DATA[pillar].color }} />
+                                        <span className="font-medium truncate">{PILLAR_DATA[pillar].name}</span>
                                     </div>
-                                ))}
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                        currentScore > 0 ? 'bg-gray-700 text-gray-200' : 'bg-gray-800/50 text-gray-600'
+                                    }`}>
+                                        {currentScore}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 overflow-y-auto p-8 bg-gray-800">
+                        {activeTab === 'general' && (
+                            <div className="space-y-8 animate-fadeIn">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                     <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700">
+                                        <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                                            <Calendar size={16} className="text-indigo-400"/> Data da Avaliação
+                                        </label>
+                                        <input 
+                                            type="date" 
+                                            value={date}
+                                            onChange={(e) => setDate(e.target.value)}
+                                            className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Alterar a data reordenará a avaliação na timeline.
+                                        </p>
+                                     </div>
+                                </div>
+
+                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700">
+                                     <div className="flex justify-between items-center mb-4">
+                                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                             <Sparkles className="text-yellow-400" /> Nota Geral & Estratégia
+                                         </h3>
+                                         <button
+                                             onClick={handleGenerateNote}
+                                             disabled={isGenerating}
+                                             className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors disabled:opacity-50"
+                                         >
+                                             <BrainCircuit size={14} />
+                                             {isGenerating ? 'Gerando...' : 'Regerar com IA'}
+                                         </button>
+                                     </div>
+                                    <textarea
+                                        className="w-full bg-gray-800 border border-gray-600 rounded-lg p-4 text-sm text-white h-40 focus:ring-2 focus:ring-indigo-500 outline-none resize-none leading-relaxed"
+                                        placeholder="Escreva uma observação geral..."
+                                        value={generalNote}
+                                        onChange={(e) => setGeneralNote(e.target.value)}
+                                    />
+                                 </div>
                             </div>
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-400 mb-1">Notas / Observações</label>
-                                <textarea
-                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white"
-                                    value={scores[pillar].notes}
-                                    onChange={e => {
-                                        const newScores = {...scores};
-                                        newScores[pillar].notes = e.target.value;
-                                        setScores(newScores);
-                                    }}
-                                />
+                        )}
+
+                        {activeTab !== 'general' && (
+                            <div className="space-y-6 animate-fadeIn">
+                                <div className="flex items-center justify-between border-b border-gray-700 pb-4 mb-6">
+                                    <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                                        {React.createElement(ICON_MAP[activeTab], { size: 28, style: { color: PILLAR_DATA[activeTab].color } })}
+                                        {PILLAR_DATA[activeTab].name}
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-400">Pontuação:</span>
+                                        <span className="text-2xl font-bold" style={{ color: PILLAR_DATA[activeTab].color }}>
+                                            {calculatePillarScore(scores[activeTab].responses)}
+                                        </span>
+                                        <span className="text-sm text-gray-500">/ 100</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {PILLAR_QUESTIONS[activeTab].map((q, idx) => (
+                                        <div key={q.id} className="bg-gray-900/50 p-5 rounded-xl border border-gray-700 hover:border-indigo-500/30 transition-colors">
+                                            <p className="text-base font-medium text-white mb-4">{q.id} {q.question}</p>
+                                            <div className="space-y-2">
+                                                {[0, 25, 50, 75, 100].map((val) => {
+                                                    const value = val as 0 | 25 | 50 | 75 | 100;
+                                                    const isSelected = scores[activeTab].responses[idx] === value;
+                                                    return (
+                                                        <label key={val} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
+                                                            isSelected
+                                                                ? 'bg-indigo-900/20 border-indigo-500 ring-1 ring-indigo-500/50'
+                                                                : 'bg-gray-800/50 border-gray-700 hover:bg-gray-800'
+                                                        }`}>
+                                                            <div className="mt-0.5">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`q-edit-${activeTab}-${idx}`}
+                                                                    value={value}
+                                                                    checked={isSelected}
+                                                                    onChange={() => {
+                                                                        const newScores = { ...scores };
+                                                                        newScores[activeTab].responses[idx] = value;
+                                                                        setScores(newScores);
+                                                                    }}
+                                                                    className="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-500 focus:ring-indigo-500 focus:ring-2"
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                                                        value === 0 ? 'bg-red-900/30 text-red-400 border border-red-900/50' :
+                                                                        value === 25 ? 'bg-orange-900/30 text-orange-400 border border-orange-900/50' :
+                                                                        value === 50 ? 'bg-yellow-900/30 text-yellow-400 border border-yellow-900/50' :
+                                                                        value === 75 ? 'bg-blue-900/30 text-blue-400 border border-blue-900/50' :
+                                                                        'bg-green-900/30 text-green-400 border border-green-900/50'
+                                                                    }`}>{value}%</span>
+                                                                </div>
+                                                                <span className="text-sm text-gray-300 block">{q.options[value]}</span>
+                                                            </div>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <div className="bg-gray-900/50 p-5 rounded-xl border border-gray-700 mt-6">
+                                    <label className="block text-sm font-medium text-gray-400 mb-2">Notas do Pilar (Opcional)</label>
+                                    <textarea
+                                        className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        rows={3}
+                                        value={scores[activeTab].notes}
+                                        onChange={e => {
+                                            const newScores = {...scores};
+                                            newScores[activeTab].notes = e.target.value;
+                                            setScores(newScores);
+                                        }}
+                                        placeholder={`Adicione observações específicas sobre ${PILLAR_DATA[activeTab].name}...`}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )}
+                    </div>
                 </div>
-                <footer className="p-4 border-t border-gray-700 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded">Cancelar</button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">Salvar Alterações</button>
+
+                <footer className="p-4 border-t border-gray-700 flex justify-end gap-3 bg-gray-900/50">
+                    <button onClick={onClose} className="px-5 py-2.5 text-gray-300 hover:bg-gray-700 rounded-lg font-medium transition-colors">Cancelar</button>
+                    <button onClick={handleSave} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-lg shadow-indigo-900/50 transition-all hover:scale-105">
+                        Salvar Alterações
+                    </button>
                 </footer>
             </div>
         </div>
